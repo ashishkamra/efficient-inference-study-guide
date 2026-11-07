@@ -16,7 +16,7 @@
  * Deploy `.output/public`. Vercel keeps using `npm run build` untouched.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { injectGrokPwaHead } from "./grok-pwa-shared.mjs";
@@ -163,7 +163,73 @@ writeFileSync(
 );
 
 // Client-side fallback for unknown/deep links. Real routes are prerendered.
-copyFileSync(join(OUTPUT, "index.html"), join(OUTPUT, "404.html"));
+// Keep this standalone: copying the home document would serialize the home
+// router state and then hydrate against a different URL (React error #418).
+writeFileSync(
+  join(OUTPUT, "404.html"),
+  `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found · Ridge</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="${base}favicon.svg">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #f3efe6;
+    color: #241f19;
+    font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  }
+  main { max-width: 34rem; }
+  .kicker {
+    margin: 0 0 12px;
+    font-family: ui-monospace, "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a4481f;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: clamp(2rem, 6vw, 3rem);
+    line-height: 1.05;
+  }
+  p { margin: 0 0 24px; color: #5d554a; line-height: 1.6; }
+  a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: #a4481f;
+    color: #fffaf2;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  a:focus-visible { outline: 2px solid #241f19; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">404 · Ridge inference studio</p>
+  <h1>That page is not in the study guide.</h1>
+  <p>The lecture, lab, or reference you asked for does not exist. Head back to the path and pick up where you left off.</p>
+  <a href="${base}">Back to the study path</a>
+</main>
+</body>
+</html>
+`,
+);
 
 // Jekyll ignores directories starting with `_`, which would drop `__grok/`.
 writeFileSync(join(OUTPUT, ".nojekyll"), "");
