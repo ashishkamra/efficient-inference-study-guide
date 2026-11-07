@@ -70,7 +70,7 @@ def backend() -> str:
     chosen = os.environ.get("RIDGE_TTS")
     if chosen:
         return chosen
-    if GPU_VOICE.is_dir() and any(GPU_VOICE.glob("*.wav")):
+    if (GPU_VOICE / "READY").exists():
         return "xtts"
     return "kokoro"
 

@@ -96,6 +96,7 @@ def main() -> int:
     if still:
         print(f"missing {len(still)} clips after sync", file=sys.stderr)
         return 1
+    (CACHE / "READY").write_text(f"{VOICE}\t{len(jobs)}\n")
     print(f"voice cache ready: {CACHE}")
     return 0
 
