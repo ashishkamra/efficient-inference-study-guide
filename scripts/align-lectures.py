@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path("/workspace")
+ROOT = Path(__file__).resolve().parents[1]
 AUDIO = ROOT / "narration"
 OUT = ROOT / "public" / "videos"
 CACHE = AUDIO / "stt"

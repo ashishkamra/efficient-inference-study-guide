@@ -63,6 +63,7 @@ export const lessons: Lesson[] = [
         "The survey’s claim: these layers are interdependent. The KV cache, in particular, is touched by all four.",
       ],
     },
+    lab: { href: "/labs#phases", label: "Compare prefill with decode" },
     sections: [
       {
         heading: "Why inference ate the budget",
@@ -130,6 +131,18 @@ export const lessons: Lesson[] = [
         ],
         answer: 1,
         why: "Section 1.3 inserts methods by layer: architecture, decoding, compression, hardware/systems. They interact. A three-level data/model/system taxonomy is a different survey, not this one.",
+      },
+      {
+        id: "shift-3",
+        prompt: "Which set of topics does the survey explicitly put out of scope?",
+        options: [
+          "KV-cache layout and paged attention",
+          "Speculative decoding and quantization",
+          "Goodput and latency SLOs",
+          "Pre-training parallelism, PEFT such as LoRA, and training-time architecture search",
+        ],
+        answer: 3,
+        why: "§1.4. The survey is about operational inference. Pre-training recipes, training parallelism, and parameter-efficient fine-tuning are deliberately excluded; test-time compute and multimodality appear only where they move a physical serving bottleneck.",
       },
     ],
   },
@@ -226,6 +239,18 @@ export const lessons: Lesson[] = [
         answer: 1,
         why: "TTFT is prefill and queueing. TPOT is the per-token latency while generating, dominated by memory bandwidth and KV-cache size.",
       },
+      {
+        id: "bot-3",
+        prompt: "Which metric counts only the tokens that actually meet a latency SLO?",
+        options: [
+          "Aggregate tokens per second",
+          "Time to first token",
+          "Mean accepted length τ",
+          "Goodput",
+        ],
+        answer: 3,
+        why: "§2.5, DistServe’s framing. Aggregate throughput can look healthy while most requests miss their deadline. Goodput discounts those, so it is the honest capacity metric. TTFT and τ measure one phase or one decoding trick, not delivered service.",
+      },
     ],
   },
   {
@@ -304,6 +329,13 @@ export const lessons: Lesson[] = [
         options: ["b_bytes", "n_kv_heads", "n_layers", "The ridge point π/β"],
         answer: 1,
         why: "GQA shares keys and values across groups of query heads, so fewer KV heads are stored. Quantization is what changes b_bytes. The ridge point is a hardware ratio, not a cache term.",
+      },
+      {
+        id: "kv-3",
+        prompt: "Eviction policies and sliding windows reduce which term of equation (5)?",
+        options: ["n_layers", "b_bytes", "The effective sequence length s", "n_kv_heads"],
+        answer: 2,
+        why: "§2.1 and the architecture pillar. H2O, StreamingLLM, and sliding windows keep fewer past positions, so the cache behaves as if s were shorter. Paging does not change this count; it only changes how memory is allocated.",
       },
     ],
   },
@@ -394,6 +426,18 @@ export const lessons: Lesson[] = [
         answer: 1,
         why: "The survey cites 236B and 671B total parameters at 21B and 37B activated, using fine-grained experts plus a shared expert. Activation sparsity is not the same thing as quantization or MQA.",
       },
+      {
+        id: "arch-3",
+        prompt: "How does mixture-of-experts change the serving bill?",
+        options: [
+          "It shrinks the KV cache in proportion to the number of activated experts",
+          "It removes the need for attention and therefore the cache",
+          "It cuts per-token compute while per-token KV state and total parameter storage stay",
+          "It guarantees a fixed-size recurrent state with full recall",
+        ],
+        answer: 2,
+        why: "§3.3. A router activates top-k experts, so FLOPs per token fall, but all experts must still live somewhere and each token still has its KV state. MoE is a compute-side win, not a cache-side one.",
+      },
     ],
   },
   {
@@ -475,6 +519,18 @@ export const lessons: Lesson[] = [
         ],
         answer: 0,
         why: "§4.1, production considerations. If the target forward is already compute-saturated, verifying γ tokens is no longer about as cheap as one token, and the wall-clock win collapses. Latency-sensitive low-batch work is the sweet spot.",
+      },
+      {
+        id: "dec-3",
+        prompt: "Which family is designed to preserve the target distribution?",
+        options: [
+          "Diffusion language models",
+          "Sampled Jacobi decoding",
+          "Skeleton-of-Thought",
+          "Rejection-sampling speculation, including LayerSkip-as-speculation",
+        ],
+        answer: 3,
+        why: "§4.2 and §4.5. Rejection sampling makes the marginal output distribution equal the target’s. Diffusion, sampled Jacobi, and Skeleton-of-Thought trade exact left-to-right conditionals for parallelism and are judged on task quality.",
       },
     ],
   },
@@ -558,6 +614,18 @@ export const lessons: Lesson[] = [
         answer: 0,
         why: "§5.5 and §8.3, Figure 3. Each method looks mild alone. AWQ/SmoothQuant scales assume the dense model’s activations. Change the architecture first and the calibration no longer matches.",
       },
+      {
+        id: "comp-3",
+        prompt: "The label W4A8 means…",
+        options: [
+          "8-bit weights, 4-bit activations",
+          "4-bit KV cache, 8-bit weights",
+          "4-bit weights, 8-bit activations",
+          "Exactly 4 of every 8 weights are zero",
+        ],
+        answer: 2,
+        why: "§5.1. The first number is weight width, the second activation width. Atom and QServe are the cited W4A8 examples. It is a weight–activation scheme, not a sparsity pattern or a KV-cache format.",
+      },
     ],
   },
   {
@@ -639,6 +707,18 @@ export const lessons: Lesson[] = [
         answer: 0,
         why: "§6.3. Most requests end long before the maximum, so contiguous reservations waste and fragment HBM. Fixed-size pages (about 16 tokens) plus a block table fix allocation without changing outputs.",
       },
+      {
+        id: "sys-3",
+        prompt: "Continuous batching’s main win is that it…",
+        options: [
+          "runs every live request once per step and admits or retires work at the boundary, removing head-of-line blocking",
+          "shrinks the KV cache by quantizing it",
+          "approximates softmax to save FLOPs",
+          "moves prefill onto a separate GPU pool",
+        ],
+        answer: 0,
+        why: "§6.3, Orca. Static batches wait for the longest request and leave the accelerator idle. Continuous batching refills the batch at every step. It is a scheduler change; quantization and disaggregation are separate pillars.",
+      },
     ],
   },
   {
@@ -708,6 +788,18 @@ export const lessons: Lesson[] = [
         ],
         answer: 0,
         why: "§7.2. Disaggregation could split the compromise, but the survey says it is not aware of production deployments that actually quantize the two phases differently. Do not over-claim.",
+      },
+      {
+        id: "syn-3",
+        prompt: "In a disaggregated deployment, speculation can change the machine mix because…",
+        options: [
+          "it eliminates the prefill pool entirely",
+          "it doubles the KV cache on both pools",
+          "it removes the need for a numeric format on the decode pool",
+          "verification pushes decode toward a compute-bound envelope, moving the right prefill-to-decode node ratio and possibly making interconnect the new bottleneck",
+        ],
+        answer: 3,
+        why: "§7.2, second-order effect. “Speculation saves bandwidth” is only the first-order story. Once verification occupies compute, capacity planning shifts, and the bottleneck can move from HBM to interconnect inside a node.",
       },
     ],
   },
@@ -785,6 +877,18 @@ export const lessons: Lesson[] = [
         answer: 1,
         why: "§8.1. A 1:7 mix restores retrieval by paying linear cache growth on the attention layers. It is a compromise, not a proof that fixed state can match softmax recall.",
       },
+      {
+        id: "front-3",
+        prompt: "The composed-compression frontier is asking for…",
+        options: [
+          "a larger calibration set and nothing else",
+          "a composition theory with predictable error bounds when compression stages are stacked",
+          "a proof that 4-bit quantization is always lossless",
+          "the removal of distillation from the serving stack",
+        ],
+        answer: 1,
+        why: "§8.3. Each stage is calibrated on the model that entered it, so the stack can overshoot the sum of isolated errors. What is missing is an account that predicts the composite, especially off the datacenter — not a single better grid.",
+      },
     ],
   },
 ];
@@ -805,6 +909,14 @@ export const glossary: { term: string; def: string }[] = [
   {
     term: "Ridge point",
     def: "I_ridge = π/β. The lowest intensity that can saturate peak compute. Modern accelerators: hundreds of FLOPs/byte.",
+  },
+  {
+    term: "Roofline",
+    def: "The bound P ≤ min(π, β·OI). Below the ridge, memory bandwidth binds; at or above it, the compute ceiling does.",
+  },
+  {
+    term: "MQA",
+    def: "Multi-query attention. One KV head shared by every query head. The smallest cache in the MHA–GQA–MQA family, with the largest recall risk.",
   },
   {
     term: "KV cache",
@@ -857,6 +969,14 @@ export const glossary: { term: string; def: string }[] = [
   {
     term: "PagedAttention",
     def: "KV memory in fixed pages (typically 16 tokens) with a block table, instead of one contiguous max-length reservation.",
+  },
+  {
+    term: "FlashAttention",
+    def: "Exact softmax attention tiled through SRAM, avoiding the T×T HBM write. IO-aware, not an approximation.",
+  },
+  {
+    term: "Eviction",
+    def: "Drop or sparsify cached KV entries (H2O, StreamingLLM, sliding windows). Shrinks the effective sequence length s; the history is gone, so recall is not free.",
   },
   {
     term: "Continuous batching",
@@ -1023,6 +1143,53 @@ export const exam: Check[] = [
     answer: 1,
     why: "§5.5 and §8.3. Memory savings multiply. Quality errors do not add. The figure writes E_total much greater than the sum of the three epsilons.",
   },
+  {
+    id: "e13",
+    lessonId: "frontiers",
+    prompt: "A fixed-size recurrent state cannot match softmax attention on needle-in-a-haystack retrieval because…",
+    options: [
+      "its decode cost grows quadratically with context",
+      "it has no learnable parameters",
+      "it is an information bottleneck that cannot keep a lossless history of arbitrary past tokens",
+      "it cannot be trained with a parallel scan",
+    ],
+    answer: 2,
+    why: "§8.1. The state is a summary: constant memory but lossy. Hybrids rent attention back, which restores recall on those layers at the price of linear cache growth. The scan keeps training parallel.",
+  },
+  {
+    id: "e14",
+    lessonId: "kv",
+    prompt: "Raising batch size b in equation (5) buys throughput but…",
+    options: [
+      "reduces n_layers proportionally",
+      "changes the hardware ridge point",
+      "shrinks the number of KV heads",
+      "multiplies KV-cache memory and often worsens per-user TPOT",
+    ],
+    answer: 3,
+    why: "§2.1 and §2.4. b is linear in the footprint. More concurrency raises aggregate tokens/s but pressures capacity and adds traffic per decode step, which can hurt per-user latency.",
+  },
+  {
+    id: "e15",
+    lessonId: "decoding",
+    prompt: "Which method is lossless at the greedy fixed point but lossy in expectation under sampling?",
+    options: [
+      "Jacobi decoding",
+      "Rejection-sampling speculative decoding",
+      "Diffusion language modeling",
+      "Skeleton-of-Thought",
+    ],
+    answer: 0,
+    why: "§4.2. Jacobi updates several future positions together and converges to the same greedy fixed point as sequential decoding. Under sampling, the parallel update changes the distribution in expectation. Rejection-sampling speculation is the lossless construction.",
+  },
+  {
+    id: "e16",
+    lessonId: "systems",
+    prompt: "Which system stores prefix KV in a radix tree so shared system prompts are not prefilled twice?",
+    options: ["PagedAttention", "DistServe", "FlashInfer", "RadixAttention (SGLang)"],
+    answer: 3,
+    why: "§6.3. RadixAttention indexes the cache by prefix and evicts by recency, so common system prompts and few-shot exemplars are reused. PagedAttention targets allocation; DistServe targets goodput; FlashInfer is the kernel layer.",
+  },
 ];
 
 export type LessonStudy = {
@@ -1176,6 +1343,8 @@ export const glossaryLessonIds: Record<string, string[]> = {
   Decode: ["shift", "bottlenecks", "kv"],
   "Operational intensity": ["bottlenecks"],
   "Ridge point": ["bottlenecks"],
+  Roofline: ["bottlenecks"],
+  MQA: ["kv", "architecture"],
   "KV cache": ["shift", "kv", "architecture", "synthesis"],
   GQA: ["kv", "architecture"],
   MLA: ["kv", "architecture"],
@@ -1189,6 +1358,8 @@ export const glossaryLessonIds: Record<string, string[]> = {
   "2:4 sparsity": ["compression"],
   "On-policy distillation": ["compression"],
   PagedAttention: ["systems"],
+  FlashAttention: ["systems"],
+  Eviction: ["architecture", "kv"],
   "Continuous batching": ["kv", "systems"],
   RadixAttention: ["systems"],
   Disaggregation: ["systems", "synthesis"],

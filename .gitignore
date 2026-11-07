@@ -3,3 +3,11 @@ node_modules/
 .github_repo
 .env
 .env.*
+.vercel/
+.codegraph/
+.tanstack/
+.node_modules.lock
+.grok/preview.log
+.grok/preview.pid
+*.log
+screenshots/phase*/

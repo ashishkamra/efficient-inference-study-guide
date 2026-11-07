@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path("/workspace")
+ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "public" / "videos"
 AUDIO = ROOT / "narration"
 AUDIO.mkdir(parents=True, exist_ok=True)
