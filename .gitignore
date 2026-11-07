@@ -12,3 +12,7 @@ node_modules/
 .grok/preview.pid
 *.log
 screenshots/*/
+narration/.build/
+narration/.tts-model/
+__pycache__/
+scripts/__pycache__/

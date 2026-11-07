@@ -1,3 +1,5 @@
+import { enrichment } from "./enrichment";
+
 export type Check = {
   id: string;
   prompt: string;
@@ -13,6 +15,8 @@ export type Section = {
   paragraphs: string[];
   formula?: { expr: string; caption: string };
   bullets?: string[];
+  table?: { columns: string[]; rows: string[][]; caption?: string };
+  figure?: { src: string; alt: string; caption: string };
   aside?: { kicker: string; body: string };
 };
 
@@ -42,7 +46,7 @@ export const SOURCE = {
   url: "https://www.cs.uoregon.edu/Reports/AREA-202606-Nguyen.pdf",
 };
 
-export const lessons: Lesson[] = [
+const baseLessons: Lesson[] = [
   {
     id: "shift",
     numeral: "01",
@@ -52,15 +56,18 @@ export const lessons: Lesson[] = [
     summary:
       "Training used to be the expensive part. Serving is now. This lesson is the survey’s argument: efficiency is a co-design problem across four layers, not a bag of tricks.",
     video: {
-      src: "/videos/lecture-shift.mp4?v=3",
+      src: "/videos/lecture-shift.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "Start at the bottom. Hardware and systems decide whether a specification becomes wall-clock throughput. Memory rivers and silicon tiles are the substrate everything else sits on.",
-        "The next slab is compression. The same model, fewer bits and fewer live weights. Density goes up; a quality budget is spent.",
-        "Above that, decoding changes how tokens are produced. A draft proposes several futures. A verifier keeps a prefix and throws the rest away. One weight read can emit more than one token.",
-        "The top slab is architecture. Softmax attention’s growing memory folds toward a fixed state — faster, but it can no longer point at every past token.",
-        "The survey’s claim: these layers are interdependent. The KV cache, in particular, is touched by all four.",
+        "The bill moved from training to serving. Training is paid once. Serving is paid on every query.",
+        "Prefill and decode are different machines. Prefill reads the prompt once. Decode reads the weights for every token.",
+        "Four pillars, one co-designed stack. Each pillar is defined by where it is inserted. They compose; they are not alternatives.",
+        "Architecture changes what the model is. Linear attention and Mamba trade recall for state. Hybrids and MoE soften the trade.",
+        "Decoding buys tokens with idle compute. A draft proposes; the target checks. One weight read can emit several tokens.",
+        "Compression spends a quality budget. Fewer bits, fewer live weights. Capacity and bandwidth, paid in accuracy.",
+        "Systems turn a specification into speed. Fewer bytes moved, less memory reserved. Mostly lossless: same outputs, less waste.",
+        "One object ties the pillars together. Every method moves a term of the cache. Name the term and the paper has a place.",
       ],
     },
     lab: { href: "/labs#phases", label: "Compare prefill with decode" },
@@ -155,14 +162,18 @@ export const lessons: Lesson[] = [
     summary:
       "Four physical resources bound serving. The roofline model tells you which one you are actually hitting. Metrics tell you whether a speedup is real for a user.",
     video: {
-      src: "/videos/lecture-bottlenecks.mp4?v=3",
+      src: "/videos/lecture-bottlenecks.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "Left side is prefill. Every prompt token is available together, so the chip does a large parallel matmul. Arithmetic intensity is high. The cores stay busy. Time-to-first-token lives here, plus queueing.",
-        "Right side is decode. The arithmetic per step is real, but the bytes that must move — weights, and a growing KV cache — dominate. The processor waits on the memory bus. Tokens come out serially. Time-per-output-token lives here.",
-        "Chunked prefill and continuous batching blur the split in production, but they do not erase it. Section 6 returns to both.",
-        "If a paper claims a speedup, ask which side of this picture it moves.",
+        "The roofline says which resource binds. Intensity is work divided by bytes. The ridge is peak compute over bandwidth.",
+        "Batch-one decode sits near one operation per byte. Two operations per parameter, two bytes. The factors cancel; the ridge does not.",
+        "Four physical bottlenecks, four ceilings. Capacity caps how many users fit. Bandwidth caps how fast one user is served.",
+        "Aggregate throughput can hide a bad user. Goodput counts only tokens inside the target. Time to first token is not time per token.",
+        "Latency is a timeline, not a number. TTFT: queue plus prefill. TPOT: the gap between decode steps.",
+        "Fast tokens outside the target are waste. Throughput counts everything. Goodput counts what met the SLO.",
+        "Batching buys throughput until memory runs out. The curve flattens at the compute roof. The cache keeps growing with the batch.",
+        "Three questions place any technique. Which bottleneck does it attack? Is the output exact, and what do you pay?",
       ],
     },
     lab: { href: "/labs#roofline", label: "Move a workload on the roofline" },
@@ -262,14 +273,17 @@ export const lessons: Lesson[] = [
     summary:
       "The cache is the ledger of the whole survey. Equation (5) is the one formula to be able to manipulate cold: every later pillar pulls a different term.",
     video: {
-      src: "/videos/lecture-kv.mp4?v=3",
+      src: "/videos/lecture-kv.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "A causal decoder factorizes the sequence with the chain rule. At each layer, queries, keys, and values are projections of the hidden states. Softmax attention is causal.",
-        "Recomputing keys and values from scratch every step would be quadratic. The engine instead appends the new key and value and reuses history. Per-step compute drops from O(t²) to O(t). Memory becomes linear in length.",
-        "Watch the shelf, not the chip. The model weights are static. The cache is the part that grows with context, batch, and layers. Capacity pressure is this shelf filling up.",
-        "Equation (5) counts it: two tensors (K and V), times layers, KV heads, head dimension, sequence length, batch, and bytes per element.",
+        "Autoregression turns history into memory. One new query attends over every past key. Recompute is quadratic; reuse is linear.",
+        "The cache has a formula you can manipulate cold. Six factors, one for each lever. The leading two is keys versus values.",
+        "Every pillar pulls a different term. GQA moves the head count. Quantization moves the bytes.",
+        "A worked example makes the size real. 32 layers, 8 KV heads, 128-dim heads. The weights never change; the users do.",
+        "Latent attention stores a code, not a pair. One low-rank vector per token. Keys and values are rebuilt in the kernel.",
+        "Prefill writes; decode reads and appends. Prefill fills every prompt position at once. Each decode step adds one pair.",
+        "Eviction is a recall decision. A window caps the length term. The dropped token cannot be recovered.",
       ],
     },
     lab: { href: "/labs#kv", label: "Compute a cache footprint" },
@@ -348,14 +362,18 @@ export const lessons: Lesson[] = [
     summary:
       "Change the model itself. Every family here either deletes the cache, shrinks it, sparsifies access to it, or hybridizes so recall survives. The bill is always recall.",
     video: {
-      src: "/videos/lecture-architecture.mp4?v=3",
+      src: "/videos/lecture-architecture.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "Softmax attention keeps a lossless history: one key and value per token. Retrieval can point at a single buried fact. The cost is a cache that scales with length.",
-        "Linear attention and selective state-space models replace that history with a fixed-size recurrent state. Decode becomes O(1) in sequence length. Training can still use a parallel scan.",
-        "Arora et al. (2024) make the tradeoff empirical and almost monotone: associative recall tracks state size. No fixed-state model in the survey has matched softmax on heavy in-context retrieval.",
-        "Hybrids are the compromise you should be able to name: keep a few real attention layers — Jamba uses about one attention layer per seven Mamba layers, plus MoE — and collapse the cache to only those layers.",
+        "Attention pays in memory; state pays in recall. Softmax keeps a lossless history. A fixed state cannot.",
+        "Linear attention keeps a summary. A d by d matrix replaces the cache. The update cost ignores sequence length.",
+        "Mamba makes the recurrence selective. The transition depends on the input. Constant time per decode step.",
+        "Recall tracks state size, almost monotonically. The gap narrows but does not close. No fixed-state model matches softmax.",
+        "Put the families side by side. State per token is the axis that matters. Every family sits somewhere on it.",
+        "Experts cut compute, not state. A router activates a few experts. Every expert still occupies memory.",
+        "The cache can shrink inside a transformer. MQA saves the most and costs quality. GQA is the production default.",
+        "The recall-efficiency frontier is still open. Cheaper memory moves left. Lossless recall moves right.",
       ],
     },
     sections: [
@@ -449,15 +467,18 @@ export const lessons: Lesson[] = [
     summary:
       "Leave the weights alone. Spend idle tensor cores so that one sequential read of the weights can emit more than one token. The dividing line is whether the output distribution stays exactly the target’s.",
     video: {
-      src: "/videos/lecture-decoding.mp4?v=3",
+      src: "/videos/lecture-decoding.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "A cheap draft proposes γ future tokens. The expensive target scores all of them in one parallel forward pass.",
-        "In the memory-bound regime that pass costs about the same wall-clock time as a single token, because the weights were going to be loaded anyway.",
-        "An acceptance rule keeps only a prefix whose conditionals match the target, and resamples at the first mismatch. Done carefully, the marginal distribution of the text is exactly the target’s. The method is lossless.",
-        "End-to-end speedup is about the mean accepted length τ, minus the cost of drafting and verification. At large batch the target is already near compute-bound, and τ greater than 1 stops paying.",
-        "Diffusion, vanilla Jacobi-under-sampling, and skeleton-of-thought do not make this lossless guarantee. That boundary is an open problem in §8.2.",
+        "One weight read can emit several tokens. Draft cheaply, verify in parallel. The sequential chain becomes a batch.",
+        "Keep the longest valid prefix. Accept until the first mismatch. Resample at that position.",
+        "The acceptance rule is what makes it exact. Accept with probability min(1, p/q). Otherwise sample from the residual.",
+        "Speculation wins in the latency regime. Speedup tracks accepted length. Large batches erase the win.",
+        "Drafters differ in where they get the draft. The target can draft from itself. Lookup wins when input and output overlap.",
+        "Diffusion denoises a block in parallel. No left-to-right order. Independence assumptions make it lossy.",
+        "Early exit can become a drafter. Leave before the last layer when confident. Layer Skip verifies with the full model.",
+        "Sort decoders by exactness first. Exact methods keep the target distribution. Approximate methods buy parallelism.",
       ],
     },
     lab: { href: "/labs#speculative", label: "Estimate a speculative speedup" },
@@ -543,13 +564,18 @@ export const lessons: Lesson[] = [
     summary:
       "Weights carry more precision than next-token prediction needs, and many of them can be skipped. Compression spends a quality budget to cut capacity, bandwidth, and — with the right kernels — to raise usable compute.",
     video: {
-      src: "/videos/lecture-compression.mp4?v=3",
+      src: "/videos/lecture-compression.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "Halving the bits halves decode traffic. Outliers ruin a uniform grid.",
-        "KIVI quantizes keys per channel and values per token. Do not swap them.",
-        "Memory savings multiply. Quality errors do not add when the methods are stacked.",
+        "Halving the bits halves the traffic. Weight bytes dominate decode. Cache bytes follow the same rule.",
+        "Outliers ruin a uniform grid. A few channels are orders of magnitude larger. A naive 4-bit grid crushes the rest.",
+        "Three formats, three different pressures. Weights, activations, and cache. The production point is W4A8.",
+        "Weight-only methods fix different failures. GPTQ corrects error after rounding. AWQ protects salient channels.",
+        "SmoothQuant moves the difficulty. Activation outliers become weight outliers. The kernel is designed with the format.",
+        "The cache has its own quantization. KIVI: two bits, no extra tuning. Keys per channel, values per token.",
+        "Sparsity needs a hardware pattern. Arbitrary zeros do not speed up dense cores. 2:4 is the pattern the silicon runs.",
+        "Stacked compression does not add up. Memory savings multiply. Quality errors interact.",
       ],
     },
     lab: { href: "/labs#cascade", label: "See a composed-error cascade" },
@@ -637,13 +663,18 @@ export const lessons: Lesson[] = [
     summary:
       "The first three pillars specify a cheaper model. This one collects the waste they cannot see: bytes that move more than once, and compute that stalls. It is the only pillar that hits all four bottlenecks, and the only one that is mostly lossless.",
     video: {
-      src: "/videos/lecture-systems.mp4?v=3",
+      src: "/videos/lecture-systems.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "FlashAttention is exact softmax. It avoids writing the big attention matrix.",
-        "PagedAttention hands out sixteen-token pages instead of a max-length reservation.",
-        "Split prefill and decode so a long prompt does not stall every user.",
+        "FlashAttention never writes the big matrix. Tile queries, keys, and values through SRAM. Softmax runs online, exactly.",
+        "The win is traffic, not a new mixer. Same math, fewer HBM round trips. Four times less traffic in the usual case.",
+        "Do not reserve the maximum length. Contiguous slots fragment memory. Pages are allocated on demand.",
+        "Continuous batching fills the gaps. Step everyone once per iteration. Admit new work at the boundary.",
+        "Shared prefixes should not be prefilled twice. System prompts repeat across users. A radix tree caches and evicts them.",
+        "A long prefill stalls every decode. Split the phases onto different pools. Prefill wants compute; decode wants bandwidth.",
+        "Goodput is the metric that survives the tail. Throughput counts the slow tail. An SLO turns latency into a budget.",
+        "The open stacks have converged. Paging, batching, FlashAttention, prefix cache. What differs is scheduling and kernel quality.",
       ],
     },
     lab: { href: "/labs#paging", label: "Compare reserved slots with pages" },
@@ -730,13 +761,17 @@ export const lessons: Lesson[] = [
     summary:
       "Two motifs cut across the taxonomy. The KV cache is a ledger every pillar writes in. Disaggregation changes which quantization and which decoder you even want.",
     video: {
-      src: "/videos/lecture-synthesis.mp4?v=3",
+      src: "/videos/lecture-synthesis.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "Architecture, decoding, compression, and paging all write the same cache ledger.",
-        "They stack. The friction is that each new layout wants a new kernel.",
-        "Prefill and decode want different number formats. Production does not split them yet.",
+        "The cache is the ledger every pillar writes in. Architecture moves a dimension. Compression shortens the word.",
+        "The wins add; the layouts fight. A real deployment runs all four at once. Every combination wants a new kernel.",
+        "Prefill and decode want opposite formats. Prefill wants wide, compute-friendly formats. Decode wants narrow weights.",
+        "Disaggregation makes two formats possible. Different schemes per phase become conceivable. No production system does it yet.",
+        "Speculation moves the machine mix. Verification pushes decode toward compute. The node link can become the bottleneck.",
+        "Four levers multiply the win. Each lever is independent in theory. The product is what reaches production.",
+        "Name the term, or it is not independent. Bottleneck, exactness, price. That is the whole exam method.",
       ],
     },
     sections: [
@@ -812,13 +847,17 @@ export const lessons: Lesson[] = [
     summary:
       "The conclusion is not “the stack is finished.” It names three cross-cutting problems. If you can state each one as a tradeoff with a reason it is still open, you have the exam’s last chapter.",
     video: {
-      src: "/videos/lecture-frontiers.mp4?v=3",
+      src: "/videos/lecture-frontiers.mp4?v=5",
       title: "Narrated lecture",
       caption: "Press play. This lesson is read aloud. The picture follows the argument.",
       transcript: [
-        "Fixed state loses associative recall. Hybrids only rent attention back.",
-        "Speculation stays lossless only while the draft matches the target.",
-        "Stacked compression errors do not add. Co-design is the unfinished job.",
+        "A fixed state cannot point at one fact. Recall falls as context grows. The frontier is still open.",
+        "Hybrids rent attention back. One attention layer for every seven Mamba layers. The cache returns, and grows again.",
+        "Speculation is exact only while drafts match. Acceptance length drives the speedup. If it falls to zero, verification is waste.",
+        "Realignment is still an open loop. Offline and batched updates exist. Per-request alignment does not.",
+        "Composed compression has no error bound. Each stage recalibrates on the last model. The total can exceed the sum of the parts.",
+        "Three open questions, one shape. Recall, exactness, composition. Each one is a tradeoff, not a bug.",
+        "Four pillars, four bottlenecks, one cache. Co-design is the conclusion. The cache is where the layers meet.",
       ],
     },
     sections: [
@@ -1191,6 +1230,11 @@ export const exam: Check[] = [
     why: "§6.3. RadixAttention indexes the cache by prefix and evicts by recency, so common system prompts and few-shot exemplars are reused. PagedAttention targets allocation; DistServe targets goodput; FlashInfer is the kernel layer.",
   },
 ];
+
+export const lessons: Lesson[] = baseLessons.map((lesson) => ({
+  ...lesson,
+  sections: [...lesson.sections, ...(enrichment[lesson.id] ?? [])],
+}));
 
 export type LessonStudy = {
   /** What the reader should be able to do after the lesson. */

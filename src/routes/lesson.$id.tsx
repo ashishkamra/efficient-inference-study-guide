@@ -121,7 +121,7 @@ function LessonPage() {
 
   return (
     <article className="grid gap-10 lg:grid-cols-[minmax(0,46rem)_16rem]">
-      <div>
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-copper-deep">
           Lesson {lesson.numeral} · {lesson.kicker}
         </p>
@@ -639,6 +639,56 @@ function NoteSection({ section, index }: { section: Section; index: number }) {
           {p}
         </p>
       ))}
+      {section.figure ? (
+        <figure className="mt-5 overflow-hidden rounded-card border border-line bg-card">
+          <a
+            href={assetUrl(section.figure.src)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open full-size figure: ${section.figure.alt}`}
+            className="block overflow-x-auto bg-paper-2/40"
+          >
+            <img
+              src={assetUrl(section.figure.src)}
+              alt={section.figure.alt}
+              loading="lazy"
+              className="w-full min-w-[36rem]"
+            />
+          </a>
+          <figcaption className="border-t border-line px-4 py-3 text-sm text-muted">
+            {section.figure.caption}
+          </figcaption>
+        </figure>
+      ) : null}
+      {section.table ? (
+        <div className="mt-5 overflow-x-auto rounded-card border border-line">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="bg-ink text-paper">
+                {section.table.columns.map((column) => (
+                  <th key={column} scope="col" className="whitespace-nowrap px-4 py-2.5 font-semibold">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {section.table.rows.map((row, rowIndex) => (
+                <tr key={rowIndex} className={rowIndex % 2 === 0 ? "bg-card" : "bg-paper-2/40"}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="border-t border-line px-4 py-2.5 align-top">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {section.table.caption ? (
+            <p className="border-t border-line bg-card px-4 py-2.5 text-sm text-muted">{section.table.caption}</p>
+          ) : null}
+        </div>
+      ) : null}
       {section.formula ? (
         <div className="mt-4 overflow-x-auto rounded-card border border-line bg-paper-2/70 px-4 py-4">
           <pre className="font-mono text-sm leading-relaxed text-ink">{section.formula.expr}</pre>
