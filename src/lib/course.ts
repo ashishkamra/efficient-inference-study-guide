@@ -1025,7 +1025,364 @@ export const exam: Check[] = [
   },
 ];
 
+export type LessonStudy = {
+  /** What the reader should be able to do after the lesson. */
+  objectives: string[];
+  /** The sentences worth carrying into the exam. */
+  takeaways: string[];
+  /** Where the survey supports the lesson. */
+  survey: string;
+};
+
+export const lessonStudy: Record<string, LessonStudy> = {
+  shift: {
+    survey: "§1, Figure 1",
+    objectives: [
+      "Explain why operational inference, not pre-training, dominates total cost of ownership.",
+      "Separate prefill from decode by the physical resource each one binds.",
+      "Place an unfamiliar technique into the survey’s four-pillar taxonomy.",
+    ],
+    takeaways: [
+      "Training cost is amortized; serving cost is paid on every deployed query.",
+      "Prefill is compute-bound; batch-1 decode is memory-bandwidth-bound.",
+      "The pillars are layers of one co-designed stack, not competing tricks.",
+    ],
+  },
+  bottlenecks: {
+    survey: "§2, Table 1, Figures 2–3",
+    objectives: [
+      "Compute operational intensity from FLOPs and bytes moved.",
+      "Use a roofline to classify a workload as memory- or compute-bound.",
+      "Choose the metric — TTFT, TPOT, goodput, or aggregate throughput — that matches a claim.",
+    ],
+    takeaways: [
+      "OI = FLOPs / bytes; the ridge point is π / β.",
+      "Batch-1 FP16 decode sits near 1 FLOP/byte because the MAC’s factor of two meets FP16’s two bytes.",
+      "Capacity caps concurrency; bandwidth caps single-stream speed; compute caps prefill and large-batch decode; interconnect caps sharding.",
+    ],
+  },
+  kv: {
+    survey: "§2.1, Equation (5)",
+    objectives: [
+      "Derive the KV footprint from layers, KV heads, head dimension, sequence, batch, and bytes.",
+      "Map each later pillar to the term of equation (5) it moves.",
+      "Explain why MLA needs a different formula rather than a smaller n_kv_heads.",
+    ],
+    takeaways: [
+      "S_kv = 2 · n_layers · n_kv_heads · d_head · s · b · b_bytes.",
+      "GQA changes n_kv_heads, quantization changes b_bytes, eviction changes effective s, batching changes b.",
+      "Paging does not shrink the cache; it changes how the cache is allocated.",
+    ],
+  },
+  architecture: {
+    survey: "§3, Equations (10)–(11)",
+    objectives: [
+      "Contrast linear attention, selective SSMs, hybrids, MoE, and KV-sharing methods.",
+      "State the recall cost of a fixed-size recurrent state.",
+      "Describe how MLA stores one latent per token and reconstructs K and V.",
+    ],
+    takeaways: [
+      "A fixed state gives O(1) decode but cannot keep a lossless history.",
+      "Hybrids rent attention back, so their cache still grows on the attention layers.",
+      "MoE cuts per-token compute, not per-token KV state.",
+    ],
+  },
+  decoding: {
+    survey: "§4",
+    objectives: [
+      "Walk through draft, verify, reject, and resample in speculative decoding.",
+      "State the condition under which speculation is lossless.",
+      "Explain why the speedup collapses at large batch and which parallel decoders are lossy.",
+    ],
+    takeaways: [
+      "Rejection sampling makes the marginal output distribution match the target exactly.",
+      "End-to-end speedup tracks mean accepted length τ minus drafting and verification cost.",
+      "Diffusion, sampled Jacobi, and Skeleton-of-Thought trade exactness for parallelism.",
+    ],
+  },
+  compression: {
+    survey: "§5, Figure 3",
+    objectives: [
+      "Distinguish weight-only, weight–activation, and KV-cache quantization.",
+      "Explain why LLM outliers break uniform grids and how GPTQ, AWQ, SmoothQuant, and rotations respond.",
+      "Explain why stacked compression errors can compound.",
+    ],
+    takeaways: [
+      "Halving the bit width halves both footprint and decode traffic.",
+      "KIVI uses per-channel keys and per-token values; swapping them is the classic miss.",
+      "Memory savings multiply, but quality errors do not add linearly.",
+    ],
+  },
+  systems: {
+    survey: "§6",
+    objectives: [
+      "Explain how FlashAttention reduces HBM traffic without approximating softmax.",
+      "Compare contiguous KV reservation with paged allocation.",
+      "Explain continuous batching, prefix reuse, and disaggregated prefill–decode.",
+    ],
+    takeaways: [
+      "FlashAttention is exact attention with a better memory schedule.",
+      "PagedAttention fixes fragmentation; it does not change the number of KV bytes.",
+      "Disaggregation protects TPOT by keeping long prefills off the decode pool.",
+    ],
+  },
+  synthesis: {
+    survey: "§7, Table 2",
+    objectives: [
+      "Combine architectural, decoding, compression, and systems techniques on one cache.",
+      "Explain the kernel and layout friction that limits otherwise additive wins.",
+      "Explain why disaggregation makes phase-specific numeric formats plausible.",
+    ],
+    takeaways: [
+      "The four axes are additive in principle; the cost is kernel co-design.",
+      "One GPU forces one weight format to serve both prefill and decode.",
+      "Speculation can shift the bottleneck from HBM toward compute and interconnect.",
+    ],
+  },
+  frontiers: {
+    survey: "§8–9",
+    objectives: [
+      "State the survey’s three open problems as tradeoffs rather than slogans.",
+      "Explain why hybrids do not close the recall–efficiency Pareto frontier.",
+      "Explain why composed compression needs a composition theory.",
+    ],
+    takeaways: [
+      "Fixed state trades associative recall for constant memory.",
+      "Lossless parallel decoding depends on draft–target alignment.",
+      "Co-design across layout, kernel, and phase is the unfinished job.",
+    ],
+  },
+};
+
+/** Glossary anchors shared by the glossary page and lesson cross-links. */
+export function glossarySlug(term: string) {
+  const greek: Record<string, string> = {
+    τ: "tau",
+    π: "pi",
+    β: "beta",
+    ε: "epsilon",
+    α: "alpha",
+  };
+  if (greek[term]) return greek[term];
+  const base = term
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return base || `term-${term.codePointAt(0) ?? 0}`;
+}
+
+export const glossaryLessonIds: Record<string, string[]> = {
+  Prefill: ["shift", "bottlenecks", "kv", "systems"],
+  Decode: ["shift", "bottlenecks", "kv"],
+  "Operational intensity": ["bottlenecks"],
+  "Ridge point": ["bottlenecks"],
+  "KV cache": ["shift", "kv", "architecture", "synthesis"],
+  GQA: ["kv", "architecture"],
+  MLA: ["kv", "architecture"],
+  Mamba: ["architecture"],
+  "Speculative decoding": ["decoding"],
+  τ: ["decoding"],
+  Goodput: ["bottlenecks", "systems"],
+  "TTFT / TPOT": ["shift", "bottlenecks"],
+  W4A8: ["compression", "synthesis"],
+  KIVI: ["compression"],
+  "2:4 sparsity": ["compression"],
+  "On-policy distillation": ["compression"],
+  PagedAttention: ["systems"],
+  "Continuous batching": ["kv", "systems"],
+  RadixAttention: ["systems"],
+  Disaggregation: ["systems", "synthesis"],
+  "Chunked prefill": ["kv", "systems"],
+};
+
+export type Formula = {
+  name: string;
+  expr: string;
+  note: string;
+  lessonId: string;
+};
+
+export const formulas: Formula[] = [
+  {
+    name: "KV footprint",
+    expr: "S_kv = 2 · n_layers · n_kv_heads · d_head · s · b · b_bytes",
+    note: "Equation (5). The leading 2 is K versus V. MLA replaces the layout.",
+    lessonId: "kv",
+  },
+  {
+    name: "MLA latent cache",
+    expr: "c_t = W_DKV h_t\nk_t = W_UK c_t ,   v_t = W_UV c_t",
+    note: "Equation (11). Store c_t only; reconstruct K and V at attention time.",
+    lessonId: "architecture",
+  },
+  {
+    name: "Mamba recurrence",
+    expr: "h_t = Ā_t h_{t−1} + B̄_t x_t ,   y_t = C_t h_t",
+    note: "Equation (10). Input-dependent transitions, fixed-size state.",
+    lessonId: "architecture",
+  },
+  {
+    name: "Operational intensity",
+    expr: "OI = FLOPs / bytes moved from main memory",
+    note: "The roofline’s x-axis. Decode at batch 1 is about 1 FLOP/byte in FP16.",
+    lessonId: "bottlenecks",
+  },
+  {
+    name: "Ridge point",
+    expr: "I_ridge = π / β",
+    note: "Lowest intensity that can saturate peak compute π at bandwidth β.",
+    lessonId: "bottlenecks",
+  },
+  {
+    name: "Roofline bound",
+    expr: "P ≤ min(π, β · OI)",
+    note: "Below the ridge, performance tracks bandwidth; above it, the compute ceiling binds.",
+    lessonId: "bottlenecks",
+  },
+  {
+    name: "Single-stream decode limit",
+    expr: "TPOT ≈ 2|θ| / β",
+    note: "Weight bytes divided by bandwidth in FP16. KV traffic and overheads push it higher.",
+    lessonId: "bottlenecks",
+  },
+  {
+    name: "Expected speculative tokens",
+    expr: "E[tokens] = (1 − α^(γ+1)) / (1 − α)",
+    note: "Independent acceptance α over a draft of length γ, plus one corrected token.",
+    lessonId: "decoding",
+  },
+  {
+    name: "Speculative speedup",
+    expr: "S = E[tokens] / (1 + c · γ)",
+    note: "c is draft cost relative to one target forward. Large batch raises the effective c.",
+    lessonId: "decoding",
+  },
+  {
+    name: "Composed compression error",
+    expr: "E_total  ≫  ε_dist + ε_sparse + ε_quant",
+    note: "Figure 3, qualitative. Later calibration assumed statistics earlier stages moved.",
+    lessonId: "frontiers",
+  },
+];
+
+export type Trap = {
+  trap: string;
+  fix: string;
+  lessonId: string;
+};
+
+export const traps: Trap[] = [
+  {
+    trap: "“The 2 FLOPs and 2 bytes are the same factor of two.”",
+    fix: "One 2 is the multiply-accumulate; the other is FP16’s byte width. Changing dtype moves only the byte side, so OI changes.",
+    lessonId: "bottlenecks",
+  },
+  {
+    trap: "“KIVI quantizes keys per token and values per channel.”",
+    fix: "It is the reverse: per-channel keys, per-token values. The asymmetry is the whole paper.",
+    lessonId: "compression",
+  },
+  {
+    trap: "“MLA is just GQA with fewer heads.”",
+    fix: "MLA caches one low-rank latent per token and reconstructs K and V. Equation (5)’s leading 2 no longer applies.",
+    lessonId: "architecture",
+  },
+  {
+    trap: "“FlashAttention approximates softmax.”",
+    fix: "It is exact attention with an IO-aware schedule. Linear attention changes the math; FlashAttention does not.",
+    lessonId: "systems",
+  },
+  {
+    trap: "“Speculative decoding is always lossless.”",
+    fix: "Only the rejection-sampling construction preserves the target distribution. Diffusion, sampled Jacobi, and Skeleton-of-Thought are judged on task quality.",
+    lessonId: "decoding",
+  },
+  {
+    trap: "“Paging shrinks the KV cache.”",
+    fix: "Paging fixes allocation and fragmentation. The number of live KV bytes is still equation (5).",
+    lessonId: "systems",
+  },
+  {
+    trap: "“Hybrids eliminate the KV cache.”",
+    fix: "They keep a minority of attention layers, so the cache still grows with context on those layers.",
+    lessonId: "frontiers",
+  },
+  {
+    trap: "“A larger batch always improves the user experience.”",
+    fix: "It raises aggregate throughput and can lower cost per token, but it multiplies KV memory and often worsens TPOT.",
+    lessonId: "bottlenecks",
+  },
+  {
+    trap: "“Compression savings and quality errors both add linearly.”",
+    fix: "Memory savings usually multiply. Quality errors can compound because later stages calibrate on a model earlier stages changed.",
+    lessonId: "compression",
+  },
+  {
+    trap: "“Training still dominates the cost of a deployed model.”",
+    fix: "Once a model serves many queries, operational inference dominates TCO. That is the survey’s opening claim.",
+    lessonId: "shift",
+  },
+];
+
+export type OralPrompt = {
+  prompt: string;
+  sketch: string;
+  lessonId: string;
+};
+
+export const oralPrompts: OralPrompt[] = [
+  {
+    prompt: "Derive the KV-cache footprint and say which term each pillar moves.",
+    sketch:
+      "Start from stored K and V per layer, head, token, and batch. Then: GQA/MLA move n_kv_heads or the layout; quantization moves b_bytes; eviction moves effective s; batching moves b; paging changes allocation, not the count.",
+    lessonId: "kv",
+  },
+  {
+    prompt: "Why is prefill compute-bound while batch-1 decode is bandwidth-bound?",
+    sketch:
+      "Prefill has the whole prompt and large parallel matmuls, so arithmetic intensity is high. Decode moves all weights plus the KV cache to emit one token, so bytes dominate. At batch 1 in FP16 the two factors of two cancel to OI ≈ 1.",
+    lessonId: "bottlenecks",
+  },
+  {
+    prompt: "Compare MQA, GQA, and MLA on what they store and what they cost.",
+    sketch:
+      "MQA stores one KV head, cheap but lossy. GQA stores a group per query-head group and is the production default. MLA stores a latent per token and reconstructs K and V; smaller cache, more compute and a different kernel.",
+    lessonId: "architecture",
+  },
+  {
+    prompt: "When is speculative decoding lossless, and when does it stop paying?",
+    sketch:
+      "Lossless when the verifier rejects and resamples so the marginal distribution matches the target. It pays when decode is bandwidth-bound and τ is high; at large batch verification is no longer nearly free, and drift lowers τ.",
+    lessonId: "decoding",
+  },
+  {
+    prompt: "Explain KIVI and why the key/value asymmetry exists.",
+    sketch:
+      "Keys are quantized per channel because a few channels carry outliers across tokens; values are quantized per token because their distribution varies token by token. About 2 bits, tuning-free.",
+    lessonId: "compression",
+  },
+  {
+    prompt: "What does PagedAttention fix, and what does it not fix?",
+    sketch:
+      "It replaces max-length contiguous reservations with fixed pages and a block table, removing internal fragmentation and enabling sharing. It does not reduce the live KV footprint or improve the attention math.",
+    lessonId: "systems",
+  },
+  {
+    prompt: "Why disaggregate prefill and decode, and what does it change about quantization?",
+    sketch:
+      "A long prefill stalls in-flight decodes and inflates TPOT. Separate pools size each phase for its bottleneck. In principle each pool could use a different numeric format; the survey says production examples of that are still missing.",
+    lessonId: "synthesis",
+  },
+  {
+    prompt: "State the survey’s three open problems and the tradeoff behind each.",
+    sketch:
+      "Recall versus constant state; lossless versus lossy parallel decoding; predictable composition of compression errors. Each is a frontier because the naive combination loses something the survey cannot yet bound.",
+    lessonId: "frontiers",
+  },
+];
+
 export function lessonById(id: string) {
+
   return lessons.find((l) => l.id === id);
 }
 

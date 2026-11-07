@@ -1,13 +1,15 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { FlaskConical, GraduationCap, Route } from "lucide-react";
+import { BookMarked, FlaskConical, GraduationCap, Route } from "lucide-react";
 import { lessons } from "@/lib/course";
 import { useProgress } from "@/lib/progress";
 import { cn } from "@/lib/cn";
+import { CommandPalette, SearchTrigger } from "@/components/command-palette";
 
 const links = [
   { to: "/", label: "Path", icon: Route },
   { to: "/labs", label: "Labs", icon: FlaskConical },
+  { to: "/review", label: "Review", icon: BookMarked },
   { to: "/exam", label: "Exam", icon: GraduationCap },
 ] as const;
 
@@ -71,19 +73,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <p
-            className="hidden text-sm text-muted tabular md:block"
-            aria-label={hydrated ? progressLabel : "Progress loading"}
-          >
-            {hydrated ? `${complete.length}/${lessons.length}` : "—/—"}
-          </p>
+          <div className="ml-auto flex items-center gap-2 md:ml-0">
+            <SearchTrigger />
+            <p
+              className="hidden text-sm text-muted tabular sm:block"
+              aria-label={hydrated ? progressLabel : "Progress loading"}
+            >
+              {hydrated ? `${complete.length}/${lessons.length}` : "—/—"}
+            </p>
+          </div>
         </div>
       </header>
       <main id="main" className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-6 md:pb-16 md:pt-8">
         {children}
       </main>
       <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 backdrop-blur-md md:hidden">
-        <ul className="grid grid-cols-3">
+        <ul className="grid grid-cols-4">
           {links.map((l) => {
             const active = l.to === "/" ? pathname === "/" : pathname.startsWith(l.to);
             const Icon = l.icon;
@@ -105,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </ul>
       </nav>
+      <CommandPalette />
     </div>
   );
 }

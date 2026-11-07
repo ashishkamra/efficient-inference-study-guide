@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
-import { glossary } from "@/lib/course";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { glossary, glossaryLessonIds, glossarySlug, lessonById } from "@/lib/course";
+import { cn } from "@/lib/cn";
 
 export const Route = createFileRoute("/glossary")({
   head: () => ({
@@ -9,7 +10,8 @@ export const Route = createFileRoute("/glossary")({
       { title: "Glossary · Ridge" },
       {
         name: "description",
-        content: "Definitions of the KV cache, roofline, speculation, quantization, paging, and serving terms in the survey.",
+        content:
+          "Definitions of the KV cache, roofline, speculation, quantization, paging, and serving terms in the survey.",
       },
     ],
   }),
@@ -18,6 +20,23 @@ export const Route = createFileRoute("/glossary")({
 
 function GlossaryPage() {
   const [query, setQuery] = useState("");
+  const [target, setTarget] = useState("");
+
+  useEffect(() => {
+    function syncHash() {
+      const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      setTarget(id);
+      if (id) {
+        window.setTimeout(() => {
+          document.getElementById(id)?.scrollIntoView({ block: "start" });
+        }, 0);
+      }
+    }
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return glossary;
@@ -50,12 +69,48 @@ function GlossaryPage() {
         {filtered.length} of {glossary.length} terms
       </p>
       <dl className="mt-4 divide-y divide-line overflow-hidden rounded-card border border-line bg-card">
-        {filtered.map((entry) => (
-          <div key={entry.term} id={entry.term.toLowerCase().replace(/[^a-z0-9]+/g, "-")} className="scroll-mt-24 px-4 py-4 sm:px-5">
-            <dt className="font-serif text-2xl">{entry.term}</dt>
-            <dd className="mt-1 text-muted">{entry.def}</dd>
-          </div>
-        ))}
+        {filtered.map((entry) => {
+          const id = glossarySlug(entry.term);
+          const lessonIds = glossaryLessonIds[entry.term] ?? [];
+          const highlighted = target === id;
+          return (
+            <div
+              key={entry.term}
+              id={id}
+              className={cn(
+                "scroll-mt-24 px-4 py-4 transition-colors sm:px-5",
+                highlighted && "bg-warn-soft/50",
+              )}
+            >
+              <dt className="font-serif text-2xl">{entry.term}</dt>
+              <dd className="mt-1 text-muted">{entry.def}</dd>
+              {lessonIds.length > 0 ? (
+                <dd className="mt-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                    Taught in
+                  </span>
+                  <span className="mt-1 flex flex-wrap gap-1.5">
+                    {lessonIds.map((lessonId) => {
+                      const lesson = lessonById(lessonId);
+                      if (!lesson) return null;
+                      return (
+                        <Link
+                          key={lessonId}
+                          to="/lesson/$id"
+                          params={{ id: lessonId }}
+                          className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line bg-paper px-2.5 text-xs font-medium hover:border-ink/30"
+                        >
+                          Lesson {lesson.numeral}
+                          <ArrowRight aria-hidden className="size-3" />
+                        </Link>
+                      );
+                    })}
+                  </span>
+                </dd>
+              ) : null}
+            </div>
+          );
+        })}
       </dl>
       {filtered.length === 0 ? (
         <p className="mt-6 rounded-card border border-line bg-card px-4 py-4 text-muted">

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExamRouteImport } from './routes/exam'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as LabsRouteImport } from './routes/labs'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as LessonIdRouteImport } from './routes/lesson.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const LabsRoute = LabsRouteImport.update({
   path: '/labs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LessonIdRoute = LessonIdRouteImport.update({
   id: '/lesson/$id',
   path: '/lesson/$id',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/exam': typeof ExamRoute
   '/glossary': typeof GlossaryRoute
   '/labs': typeof LabsRoute
+  '/review': typeof ReviewRoute
   '/lesson/$id': typeof LessonIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/exam': typeof ExamRoute
   '/glossary': typeof GlossaryRoute
   '/labs': typeof LabsRoute
+  '/review': typeof ReviewRoute
   '/lesson/$id': typeof LessonIdRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,22 @@ export interface FileRoutesById {
   '/exam': typeof ExamRoute
   '/glossary': typeof GlossaryRoute
   '/labs': typeof LabsRoute
+  '/review': typeof ReviewRoute
   '/lesson/$id': typeof LessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/exam' | '/glossary' | '/labs' | '/lesson/$id'
+  fullPaths: '/' | '/exam' | '/glossary' | '/labs' | '/review' | '/lesson/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/exam' | '/glossary' | '/labs' | '/lesson/$id'
-  id: '__root__' | '/' | '/exam' | '/glossary' | '/labs' | '/lesson/$id'
+  to: '/' | '/exam' | '/glossary' | '/labs' | '/review' | '/lesson/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/exam'
+    | '/glossary'
+    | '/labs'
+    | '/review'
+    | '/lesson/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   ExamRoute: typeof ExamRoute
   GlossaryRoute: typeof GlossaryRoute
   LabsRoute: typeof LabsRoute
+  ReviewRoute: typeof ReviewRoute
   LessonIdRoute: typeof LessonIdRoute
 }
 
@@ -109,6 +126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LabsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lesson/$id': {
       id: '/lesson/$id'
       path: '/lesson/$id'
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExamRoute: ExamRoute,
   GlossaryRoute: GlossaryRoute,
   LabsRoute: LabsRoute,
+  ReviewRoute: ReviewRoute,
   LessonIdRoute: LessonIdRoute,
 }
 export const routeTree = rootRouteImport

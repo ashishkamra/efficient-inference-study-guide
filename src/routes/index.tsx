@@ -84,6 +84,12 @@ function Home() {
             >
               Open the labs
             </Link>
+            <Link
+              to="/review"
+              className="inline-flex min-h-11 items-center rounded-full px-2 text-sm font-semibold text-copper-deep underline decoration-line underline-offset-4"
+            >
+              Review sheet
+            </Link>
           </div>
         </div>
         <aside className="rounded-card border border-line bg-card p-5">

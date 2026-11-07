@@ -13,7 +13,17 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { lessonById, lessons, neighbors, SOURCE, type Section } from "@/lib/course";
+import {
+  glossary,
+  glossaryLessonIds,
+  glossarySlug,
+  lessonById,
+  lessonStudy,
+  lessons,
+  neighbors,
+  SOURCE,
+  type Section,
+} from "@/lib/course";
 import { useProgress } from "@/lib/progress";
 import { cn } from "@/lib/cn";
 
@@ -79,6 +89,8 @@ function LessonPage() {
   const { prev, next } = neighbors(lesson.id);
   const index = lessons.findIndex((l) => l.id === lesson.id);
   const answered = lesson.checks.filter((c) => checks[c.id] !== undefined).length;
+  const study = lessonStudy[lesson.id];
+  const keyTerms = glossary.filter((g) => (glossaryLessonIds[g.term] ?? []).includes(lesson.id));
 
   const modes: { id: Mode; label: string; icon: typeof Play }[] = [
     ...(lesson.video ? [{ id: "watch" as const, label: "Watch", icon: Play }] : []),
@@ -115,6 +127,13 @@ function LessonPage() {
                   {lesson.lab.label}
                 </Link>
               </dd>
+            </div>
+          ) : null}
+          {study ? (
+            <div className="flex items-center gap-1.5">
+              <BookOpen aria-hidden className="size-4" />
+              <dt className="sr-only">Survey reference</dt>
+              <dd>{study.survey}</dd>
             </div>
           ) : null}
         </dl>
@@ -212,6 +231,28 @@ function LessonPage() {
               </button>
             </div>
 
+            {study ? (
+              <section
+                aria-labelledby="objectives-heading"
+                className="mt-4 rounded-card border border-line bg-card px-4 py-4"
+              >
+                <h2
+                  id="objectives-heading"
+                  className="text-xs font-semibold uppercase tracking-[0.14em] text-muted"
+                >
+                  After this lesson you can
+                </h2>
+                <ul className="mt-2 space-y-2 text-sm">
+                  {study.objectives.map((objective) => (
+                    <li key={objective} className="grid grid-cols-[0.6rem_1fr] gap-3">
+                      <span className="mt-2 size-1.5 rounded-full bg-copper" />
+                      <span>{objective}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
             <nav aria-label="On this page" className="mt-4 rounded-card border border-line bg-card px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">On this page</p>
               <ol className="mt-2 space-y-1 text-sm">
@@ -233,6 +274,46 @@ function LessonPage() {
                 <NoteSection key={section.heading} section={section} index={i} />
               ))}
             </div>
+
+            {study ? (
+              <section
+                aria-labelledby="takeaways-heading"
+                className="mt-8 rounded-card border border-line bg-warn-soft/50 px-4 py-4"
+              >
+                <h2 id="takeaways-heading" className="font-serif text-2xl">
+                  Takeaways
+                </h2>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {study.takeaways.map((takeaway) => (
+                    <li key={takeaway} className="flex gap-2">
+                      <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-moss" />
+                      <span>{takeaway}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {keyTerms.length > 0 ? (
+              <section aria-labelledby="terms-heading" className="mt-4 rounded-card border border-line bg-card px-4 py-4">
+                <h2 id="terms-heading" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+                  Key terms
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {keyTerms.map((entry) => (
+                    <li key={entry.term}>
+                      <Link
+                        to="/glossary"
+                        hash={glossarySlug(entry.term)}
+                        className="inline-flex min-h-9 items-center rounded-full border border-line bg-paper px-3 text-sm font-medium hover:border-ink/30 hover:text-ink"
+                      >
+                        {entry.term}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
             <div className="mt-8 flex flex-wrap gap-3">
               <button
