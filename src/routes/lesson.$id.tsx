@@ -199,7 +199,7 @@ function LessonPage() {
                   controls
                   playsInline
                   preload="metadata"
-                  poster={assetUrl(lesson.video.src.replace(/\.mp4(\?.*)?$/, ".jpg"))}
+                  poster={assetUrl(lesson.video.src.replace(/\.mp4/, ".jpg"))}
                   src={assetUrl(lesson.video.src)}
                   onLoadedMetadata={(event) => {
                     const video = event.currentTarget;

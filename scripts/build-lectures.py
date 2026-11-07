@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
-"""Build the Ridge narrated lectures.
+"""Build the Ridge narrated lectures, beat by beat.
 
-One slide per narration segment: the words are synthesised first, the diagram is
-rendered, and the slide is held for exactly the length of its audio. That keeps
-the picture locked to the voice with no speech-to-text alignment step.
+Each slide's narration is split into sentences. Every sentence becomes a beat:
+its own audio clip and its own frame, with the slide bullet it talks about lit
+up and the others dimmed. Beat frames crossfade, slides crossfade while the
+voice is silent, and the audio is placed on one continuous timeline so the
+picture never cuts away from the words.
 
-    python3 scripts/build-lectures.py            # build every lesson
-    python3 scripts/build-lectures.py kv systems # build selected lessons
+    python3 scripts/build-lectures.py             # every lesson
+    python3 scripts/build-lectures.py kv systems  # selected lessons
+    RIDGE_TTS=kokoro python3 scripts/build-lectures.py kv
 
-TTS is Kokoro-82M running locally through onnxruntime. The model files are
-downloaded once into narration/.tts-model (gitignored).
+The default voice is XTTS-v2 rendered on the GPU box by scripts/voice-gpu.py
+and cached in narration/.tts-gpu. Set RIDGE_TTS=kokoro to use the local
+Kokoro-82M model instead.
 """
 
 from __future__ import annotations
 
-import hashlib
+import bisect
 import json
+import math
+import os
 import shutil
 import subprocess
 import sys
@@ -24,59 +30,49 @@ import wave
 from pathlib import Path
 
 import numpy as np
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from beats import slide_beats  # noqa: E402
 from diagrams import CAPTIONS, DRAW  # noqa: E402
 from lectures import LESSONS  # noqa: E402
-from slidekit import render_slide  # noqa: E402
+from slidekit import H, PAPER, W, render_slide  # noqa: E402
+from speech import clip_hash, spoken  # noqa: E402
 
 AUDIO = ROOT / "narration"
 OUT = ROOT / "public" / "videos"
 CACHE = AUDIO / ".tts-model"
 WORK = AUDIO / ".build"
+GPU_VOICE = AUDIO / ".tts-gpu"
 MODEL = CACHE / "kokoro-v1.0.onnx"
 VOICES = CACHE / "voices-v1.0.bin"
 MODEL_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
 VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 
-VOICE = "af_heart"
-SPEED = 0.96
-GAP = 0.32  # seconds of silence between slides
-TAIL = 0.6
+KOKORO_VOICE = "af_heart"
+KOKORO_SPEED = 0.96
+XTTS_VOICE = os.environ.get("RIDGE_VOICE", "Ana Florence")
 
-# Spoken forms for tokens the phonemiser would guess badly.
-PRONOUNCE = {
-    "KIVI": "kee vee",
-    "SGLang": "S G Lang",
-    "vLLM": "v L L M",
-    "GPTQ": "G P T Q",
-    "AWQ": "A W Q",
-    "MoE": "mixture of experts",
-    "GQA": "G Q A",
-    "MQA": "M Q A",
-    "MLA": "M L A",
-    "TTFT": "T T F T",
-    "TPOT": "T P O T",
-    "SLO": "S L O",
-    "HBM": "H B M",
-    "SRAM": "S ram",
-    "INT4": "int four",
-    "INT8": "int eight",
-    "FP16": "F P sixteen",
-    "FP8": "F P eight",
-    "W4A8": "W four A eight",
-    "RWKV": "R W K V",
-    "EAGLE": "eagle",
-    "RadixAttention": "radix attention",
-    "FlashAttention": "flash attention",
-    "PagedAttention": "paged attention",
-    "DistServe": "dist serve",
-    "QuIP": "quip",
-}
+SR = 24000
+FPS = 24
+LEAD = 0.45       # first slide is on screen before the voice starts
+BEAT_GAP = 0.14   # between sentences of the same claim
+BULLET_GAP = 0.34 # when the narration moves to the other claim
+SLIDE_GAP = 0.62  # between slides, used for the crossfade
+TAIL = 1.1
 
 _kokoro = None
+
+
+def backend() -> str:
+    chosen = os.environ.get("RIDGE_TTS")
+    if chosen:
+        return chosen
+    if GPU_VOICE.is_dir() and any(GPU_VOICE.glob("*.wav")):
+        return "xtts"
+    return "kokoro"
 
 
 def ensure_model():
@@ -101,29 +97,6 @@ def engine():
     return _kokoro
 
 
-def spoken(text: str) -> str:
-    for term, say in PRONOUNCE.items():
-        text = text.replace(term, say)
-    return text
-
-
-def synth(text: str, dest: Path):
-    """Synthesize one segment, cached on a hash of voice + text."""
-    digest = hashlib.sha1(f"{VOICE}|{SPEED}|{text}".encode()).hexdigest()[:16]
-    meta = dest.with_suffix(".json")
-    if dest.exists() and meta.exists() and json.loads(meta.read_text()).get("hash") == digest:
-        return
-    samples, sr = engine().create(spoken(text), voice=VOICE, speed=SPEED, lang="en-us")
-    data = (np.clip(samples, -1, 1) * 32767).astype(np.int16)
-    with wave.open(str(dest), "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(sr)
-        w.writeframes(data.tobytes())
-    meta.write_text(json.dumps({"hash": digest, "sr": sr}))
-    print(f"  tts {dest.name} {len(samples) / sr:.1f}s")
-
-
 def read_wav(path: Path) -> tuple[np.ndarray, int]:
     with wave.open(str(path), "rb") as w:
         sr = w.getframerate()
@@ -131,12 +104,100 @@ def read_wav(path: Path) -> tuple[np.ndarray, int]:
     return data, sr
 
 
-def duration(path: Path) -> float:
-    data, sr = read_wav(path)
-    return len(data) / sr
+def write_wav(path: Path, data: np.ndarray, sr: int = SR):
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(data.tobytes())
 
 
-def build(lesson):
+def synth_kokoro(text: str, dest: Path):
+    digest = clip_hash(text, f"kokoro|{KOKORO_VOICE}|{KOKORO_SPEED}")
+    meta = dest.with_suffix(".json")
+    if dest.exists() and meta.exists() and json.loads(meta.read_text()).get("hash") == digest:
+        return
+    samples, sr = engine().create(spoken(text), voice=KOKORO_VOICE, speed=KOKORO_SPEED, lang="en-us")
+    pcm = (np.clip(samples, -1, 1) * 32767).astype(np.int16)
+    write_wav(dest, pcm, sr)
+    meta.write_text(json.dumps({"hash": digest, "sr": sr}))
+
+
+def beat_audio(text: str, work: Path, name: str, kind: str) -> np.ndarray:
+    if kind == "xtts":
+        path = GPU_VOICE / f"{clip_hash(spoken(text), XTTS_VOICE)}.wav"
+        if not path.exists():
+            raise SystemExit(
+                f"missing GPU voice clip for: {text[:60]!r}\nrun: python3 scripts/voice-gpu.py"
+            )
+        data, sr = read_wav(path)
+    else:
+        path = work / f"{name}.wav"
+        synth_kokoro(text, path)
+        data, sr = read_wav(path)
+    if sr != SR:
+        data = resample(data, sr, SR)
+    return normalize(trim_silence(data))
+
+
+def trim_silence(data: np.ndarray) -> np.ndarray:
+    """Drop the dead air a model leaves at the head and tail of a clip."""
+    peak = int(np.abs(data).max()) if len(data) else 0
+    if peak == 0:
+        return data
+    live = np.flatnonzero(np.abs(data.astype(np.int32)) > max(90, peak * 0.015))
+    if live.size == 0:
+        return data
+    start = max(0, int(live[0]) - int(0.05 * SR))
+    end = min(len(data), int(live[-1]) + int(0.12 * SR))
+    return data[start:end]
+
+
+def normalize(data: np.ndarray) -> np.ndarray:
+    """Even out clip loudness without letting one stressed word clip."""
+    if not len(data):
+        return data
+    loud = float(np.percentile(np.abs(data.astype(np.float32)), 92))
+    if loud < 60:
+        return data
+    gain = 0.24 * 32767 / loud
+    return np.clip(data.astype(np.float32) * gain, -32768, 32767).astype(np.int16)
+
+
+def resample(data: np.ndarray, sr: int, target: int) -> np.ndarray:
+    if sr == target:
+        return data
+    n = int(round(len(data) * target / sr))
+    x = np.linspace(0, len(data) - 1, n)
+    out = np.interp(x, np.arange(len(data)), data.astype(np.float32))
+    return np.clip(out, -32768, 32767).astype(np.int16)
+
+
+def smoothstep(a: float) -> float:
+    a = min(1.0, max(0.0, a))
+    return a * a * (3 - 2 * a)
+
+
+def image_for(lesson, slide, index, total, beat, path: Path) -> Image.Image:
+    fig = DRAW[slide["fig"]]
+    params = dict(slide.get("params") or {})
+    return render_slide(
+        path,
+        lesson["kicker"],
+        slide["head"],
+        slide.get("bullets", []),
+        lambda d, box, f=fig, p=params: f(d, box, **p),
+        index,
+        total,
+        layout=slide.get("layout", "split"),
+        tag=slide.get("tag"),
+        caption=CAPTIONS.get(slide["fig"]),
+        active=[beat.bullet] if beat.bullet >= 0 else None,
+        keywords=beat.keywords,
+    )
+
+
+def build(lesson, kind: str):
     lid = lesson["id"]
     work = WORK / lid
     work.mkdir(parents=True, exist_ok=True)
@@ -145,100 +206,163 @@ def build(lesson):
     for old in frames.glob("*"):
         old.unlink()
 
-    segments = []
-    cursor = 0.0
-    gap = np.zeros(int(24000 * GAP), dtype=np.int16)
-    master = []
-    starts = []
+    beats = []
+    total = len(lesson["slides"])
     for i, slide in enumerate(lesson["slides"], start=1):
-        wav = work / f"seg-{i:02d}.wav"
-        synth(slide["say"], wav)
-        data, sr = read_wav(wav)
-        if sr != 24000:
-            raise SystemExit(f"unexpected sample rate {sr}")
-        starts.append(cursor)
-        cursor += len(data) / sr + GAP
-        master.append(data)
-        master.append(gap)
-        png = frames / f"s{i:02d}.png"
-        draw = DRAW[slide["fig"]]
-        params = dict(slide.get("params") or {})
-        layout = slide.get("layout", "split")
-        render_slide(
-            png,
-            lesson["kicker"],
-            slide["head"],
-            slide.get("bullets", []),
-            lambda d, box, f=draw, p=params: f(d, box, **p),
-            i,
-            len(lesson["slides"]),
-            layout=layout,
-            tag=slide.get("tag"),
-            caption=CAPTIONS.get(slide["fig"]),
+        seen: dict[tuple[int, tuple[str, ...]], Image.Image] = {}
+        slide_beats_ = slide_beats(slide["say"], slide.get("bullets", []))
+        for k, beat in enumerate(slide_beats_, start=1):
+            key = (beat.bullet, tuple(beat.keywords))
+            if key in seen:
+                img = seen[key]
+            else:
+                png = frames / f"s{i:02d}-b{k:02d}.png"
+                img = image_for(lesson, slide, i, total, beat, png)
+                seen[key] = img
+            pcm = beat_audio(beat.text, work, f"s{i:02d}-b{k:02d}", kind)
+            beats.append(
+                {
+                    "slide": i,
+                    "bullet": beat.bullet,
+                    "img": img,
+                    "pcm": pcm,
+                    "dur": len(pcm) / SR,
+                }
+            )
+
+    # Place every clip on one timeline. The gap before a beat is also the
+    # length of the crossfade into it, so the new frame has settled by the time
+    # its sentence starts.
+    at = LEAD
+    for n, beat in enumerate(beats):
+        if n:
+            prev = beats[n - 1]
+            if beat["slide"] != prev["slide"]:
+                gap = SLIDE_GAP
+            elif beat["bullet"] != prev["bullet"]:
+                gap = BULLET_GAP
+            else:
+                gap = BEAT_GAP
+            at = prev["at"] + prev["dur"] + gap
+        beat["at"] = at
+        beat["fade"] = 0.0 if n == 0 else min(gap, 0.7)
+    total_seconds = beats[-1]["at"] + beats[-1]["dur"] + TAIL
+
+    starts = [b["at"] for b in beats]
+    n_frames = int(math.ceil(total_seconds * FPS))
+    samples = int(math.ceil(n_frames / FPS * SR))
+    master = np.zeros(samples, dtype=np.int16)
+    for beat in beats:
+        start = int(round(beat["at"] * SR))
+        end = min(start + len(beat["pcm"]), len(master))
+        master[start:end] = beat["pcm"][: end - start]
+
+    master_wav = work / "master.wav"
+    write_wav(master_wav, master)
+    (frames / "timeline.json").write_text(
+        json.dumps(
+            [
+                {
+                    "t": round(b["at"], 3),
+                    "dur": round(b["dur"], 3),
+                    "slide": b["slide"],
+                    "bullet": b["bullet"],
+                }
+                for b in beats
+            ],
+            indent=0,
         )
-        segments.append((png, len(data) / sr + GAP))
-
-    # master narration: segments + trailing silence
-    master.append(np.zeros(int(24000 * TAIL), dtype=np.int16))
-    audio = np.concatenate(master)
-    master_mp3 = AUDIO / f"{lid}.mp3"
-    tmp_wav = work / "master.wav"
-    with wave.open(str(tmp_wav), "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(24000)
-        w.writeframes(audio.tobytes())
-    subprocess.check_call(
-        ["ffmpeg", "-y", "-i", str(tmp_wav), "-codec:a", "libmp3lame", "-b:a", "160k", str(master_mp3)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
     )
-
-    lines = []
-    for png, dur in segments:
-        lines.append(f"file '{png}'\n")
-        lines.append(f"duration {dur:.3f}\n")
-    lines.append(f"file '{segments[-1][0]}'\n")
-    (frames / "concat.txt").write_text("".join(lines))
 
     silent = work / "silent.mp4"
-    subprocess.check_call(
+    proc = subprocess.Popen(
         [
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(frames / "concat.txt"),
-            "-vf", "fps=24,format=yuv420p",
-            "-c:v", "libopenh264", "-b:v", "1600k", "-g", "48",
+            "ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
+            "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
+            "-c:v", "libopenh264", "-b:v", "1600k", "-g", str(FPS * 2),
             "-pix_fmt", "yuv420p", "-an", str(silent),
         ],
+        stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
+    hold: dict[int, bytes] = {}
+    paper = Image.new("RGB", (W, H), PAPER)
+
+    def raw(index: int) -> bytes:
+        if index not in hold:
+            hold[index] = beats[index]["img"].tobytes()
+        return hold[index]
+
+    for f in range(n_frames):
+        t = f / FPS
+        j = bisect.bisect_right(starts, t) - 1
+        if j < 0:
+            j = 0
+        nxt = j + 1
+        cross = (
+            nxt < len(beats)
+            and beats[nxt]["fade"] > 0
+            and beats[nxt]["img"] is not beats[j]["img"]
+            and t >= starts[nxt] - beats[nxt]["fade"]
+        )
+        if cross:
+            span = beats[nxt]["fade"]
+            begin = starts[nxt] - span
+            incoming = beats[nxt]["img"]
+            if beats[nxt]["slide"] != beats[j]["slide"]:
+                # Page turn: let the old slide dissolve to paper, then let the
+                # new one resolve out of it. Two different layouts never
+                # double-expose into each other.
+                half = begin + span / 2
+                if t < half:
+                    frame = Image.blend(beats[j]["img"], paper, smoothstep((t - begin) / (span / 2)))
+                else:
+                    frame = Image.blend(paper, incoming, smoothstep((t - half) / (span / 2)))
+            else:
+                frame = Image.blend(beats[j]["img"], incoming, smoothstep((t - begin) / span))
+            proc.stdin.write(frame.tobytes())
+        else:
+            proc.stdin.write(raw(j))
+
+    proc.stdin.close()
+    if proc.wait() != 0:
+        raise SystemExit("ffmpeg frame encode failed")
 
     final = OUT / f"lecture-{lid}.mp4"
     subprocess.check_call(
         [
-            "ffmpeg", "-y", "-i", str(silent), "-i", str(tmp_wav),
+            "ffmpeg", "-y", "-i", str(silent), "-i", str(master_wav),
             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest",
             "-movflags", "+faststart", str(final),
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    subprocess.check_call(
+        ["ffmpeg", "-y", "-i", str(master_wav), "-codec:a", "libmp3lame", "-b:a", "160k", str(AUDIO / f"{lid}.mp3")],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
-    from PIL import Image
+    beats[0]["img"].convert("RGB").save(OUT / f"lecture-{lid}.jpg", quality=90)
 
-    Image.open(frames / "s01.png").convert("RGB").save(OUT / f"lecture-{lid}.jpg", quality=90)
-    total = cursor + TAIL
-    print(f"{lid:12s} slides={len(segments):2d}  {total/60:.2f} min  {final.stat().st_size/1e6:.1f} MB")
+    print(
+        f"{lid:12s} slides={total:2d} beats={len(beats):3d}  "
+        f"{total_seconds / 60:.2f} min  {final.stat().st_size / 1e6:.1f} MB"
+    )
 
 
 def main():
     wanted = set(sys.argv[1:])
     OUT.mkdir(parents=True, exist_ok=True)
+    kind = backend()
+    print(f"voice: {kind}")
     for lesson in LESSONS:
         if wanted and lesson["id"] not in wanted:
             continue
-        print(lesson["id"])
-        build(lesson)
+        build(lesson, kind)
 
 
 if __name__ == "__main__":

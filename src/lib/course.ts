@@ -56,9 +56,9 @@ const baseLessons: Lesson[] = [
     summary:
       "Training used to be the expensive part. Serving is now. This lesson is the survey’s argument: efficiency is a co-design problem across four layers, not a bag of tricks.",
     video: {
-      src: "/videos/lecture-shift.mp4?v=5",
+      src: "/videos/lecture-shift.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "The bill moved from training to serving. Training is paid once. Serving is paid on every query.",
         "Prefill and decode are different machines. Prefill reads the prompt once. Decode reads the weights for every token.",
@@ -162,9 +162,9 @@ const baseLessons: Lesson[] = [
     summary:
       "Four physical resources bound serving. The roofline model tells you which one you are actually hitting. Metrics tell you whether a speedup is real for a user.",
     video: {
-      src: "/videos/lecture-bottlenecks.mp4?v=5",
+      src: "/videos/lecture-bottlenecks.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "The roofline says which resource binds. Intensity is work divided by bytes. The ridge is peak compute over bandwidth.",
         "Batch-one decode sits near one operation per byte. Two operations per parameter, two bytes. The factors cancel; the ridge does not.",
@@ -273,9 +273,9 @@ const baseLessons: Lesson[] = [
     summary:
       "The cache is the ledger of the whole survey. Equation (5) is the one formula to be able to manipulate cold: every later pillar pulls a different term.",
     video: {
-      src: "/videos/lecture-kv.mp4?v=5",
+      src: "/videos/lecture-kv.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "Autoregression turns history into memory. One new query attends over every past key. Recompute is quadratic; reuse is linear.",
         "The cache has a formula you can manipulate cold. Six factors, one for each lever. The leading two is keys versus values.",
@@ -362,9 +362,9 @@ const baseLessons: Lesson[] = [
     summary:
       "Change the model itself. Every family here either deletes the cache, shrinks it, sparsifies access to it, or hybridizes so recall survives. The bill is always recall.",
     video: {
-      src: "/videos/lecture-architecture.mp4?v=5",
+      src: "/videos/lecture-architecture.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "Attention pays in memory; state pays in recall. Softmax keeps a lossless history. A fixed state cannot.",
         "Linear attention keeps a summary. A d by d matrix replaces the cache. The update cost ignores sequence length.",
@@ -467,9 +467,9 @@ const baseLessons: Lesson[] = [
     summary:
       "Leave the weights alone. Spend idle tensor cores so that one sequential read of the weights can emit more than one token. The dividing line is whether the output distribution stays exactly the target’s.",
     video: {
-      src: "/videos/lecture-decoding.mp4?v=5",
+      src: "/videos/lecture-decoding.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "One weight read can emit several tokens. Draft cheaply, verify in parallel. The sequential chain becomes a batch.",
         "Keep the longest valid prefix. Accept until the first mismatch. Resample at that position.",
@@ -564,9 +564,9 @@ const baseLessons: Lesson[] = [
     summary:
       "Weights carry more precision than next-token prediction needs, and many of them can be skipped. Compression spends a quality budget to cut capacity, bandwidth, and — with the right kernels — to raise usable compute.",
     video: {
-      src: "/videos/lecture-compression.mp4?v=5",
+      src: "/videos/lecture-compression.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "Halving the bits halves the traffic. Weight bytes dominate decode. Cache bytes follow the same rule.",
         "Outliers ruin a uniform grid. A few channels are orders of magnitude larger. A naive 4-bit grid crushes the rest.",
@@ -663,9 +663,9 @@ const baseLessons: Lesson[] = [
     summary:
       "The first three pillars specify a cheaper model. This one collects the waste they cannot see: bytes that move more than once, and compute that stalls. It is the only pillar that hits all four bottlenecks, and the only one that is mostly lossless.",
     video: {
-      src: "/videos/lecture-systems.mp4?v=5",
+      src: "/videos/lecture-systems.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "FlashAttention never writes the big matrix. Tile queries, keys, and values through SRAM. Softmax runs online, exactly.",
         "The win is traffic, not a new mixer. Same math, fewer HBM round trips. Four times less traffic in the usual case.",
@@ -761,9 +761,9 @@ const baseLessons: Lesson[] = [
     summary:
       "Two motifs cut across the taxonomy. The KV cache is a ledger every pillar writes in. Disaggregation changes which quantization and which decoder you even want.",
     video: {
-      src: "/videos/lecture-synthesis.mp4?v=5",
+      src: "/videos/lecture-synthesis.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "The cache is the ledger every pillar writes in. Architecture moves a dimension. Compression shortens the word.",
         "The wins add; the layouts fight. A real deployment runs all four at once. Every combination wants a new kernel.",
@@ -847,9 +847,9 @@ const baseLessons: Lesson[] = [
     summary:
       "The conclusion is not “the stack is finished.” It names three cross-cutting problems. If you can state each one as a tradeoff with a reason it is still open, you have the exam’s last chapter.",
     video: {
-      src: "/videos/lecture-frontiers.mp4?v=5",
+      src: "/videos/lecture-frontiers.mp4?v=6",
       title: "Narrated lecture",
-      caption: "Press play. This lesson is read aloud. The picture follows the argument.",
+      caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
         "A fixed state cannot point at one fact. Recall falls as context grows. The frontier is still open.",
         "Hybrids rent attention back. One attention layer for every seven Mamba layers. The cache returns, and grows again.",

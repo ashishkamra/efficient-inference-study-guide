@@ -34,6 +34,8 @@ BLUE = (54, 102, 158)
 BLUE_SOFT = (222, 232, 243)
 WARN = (176, 122, 22)
 WARN_SOFT = (248, 239, 216)
+MUTED_SOFT = (157, 148, 136)
+ACTIVE_BG = (250, 238, 227)
 
 W, H = 1280, 720
 
@@ -573,6 +575,50 @@ def d_blocks(d, box, items, note=None):
         text(d, ((x0 + x1) / 2, y1 + 12), note, font("sans", 14), MUTED, anchor="ma")
 
 
+def _bare(word: str) -> str:
+    return word.strip(".,;:!?()[]\"'").lower()
+
+
+def words_line(d, xy, s, f, base=INK, accent=COPPER_DEEP, keywords=()) -> None:
+    """Draw one line word by word so spoken keywords can take the accent."""
+    x, y = xy
+    keys = {k.lower() for k in keywords}
+    space = d.textlength(" ", font=f)
+    for i, word in enumerate(s.split()):
+        col = accent if _bare(word) in keys else base
+        d.text((x, y), word, font=f, fill=col)
+        x += d.textlength(word, font=f)
+        if i < len(s.split()) - 1:
+            x += space
+
+
+def bullet_chips(d, x0, y0, bullets, f, active, keywords, max_w) -> float:
+    """Draw the wide-layout bullets as chips; the spoken one is filled."""
+    x, y = x0, y0
+    pad_x, pad_y, gap = 13, 7, 10
+    h = f.size + pad_y * 2
+    for i, b in enumerate(bullets):
+        tw = d.textlength(b, font=f)
+        if x > x0 and x + tw + pad_x * 2 > max_w:
+            x = x0
+            y += h + gap
+        live = active is None or i in active
+        fill = COPPER_SOFT if live else CARD
+        outline = COPPER if live else LINE
+        d.rounded_rectangle((x, y, x + tw + pad_x * 2, y + h), radius=9, fill=fill, outline=outline, width=2)
+        words_line(
+            d,
+            (x + pad_x, y + pad_y - 1),
+            b,
+            f,
+            base=INK if live else MUTED_SOFT,
+            accent=COPPER_DEEP,
+            keywords=keywords if live else (),
+        )
+        x += tw + pad_x * 2 + gap
+    return y + h
+
+
 def render_slide(
     path: Path,
     kicker: str,
@@ -584,8 +630,14 @@ def render_slide(
     layout: str = "split",
     tag: str | None = None,
     caption: str | None = None,
+    active: Sequence[int] | None = None,
+    keywords: Sequence[str] = (),
 ):
-    """Compose one 1280x720 slide. `diagram` is a callable(draw, box)."""
+    """Compose one 1280x720 slide. `diagram` is a callable(draw, box).
+
+    `active` names the bullets the narration is currently discussing; the rest
+    are dimmed. `keywords` are words to accent inside the active bullet.
+    """
     img = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, 10, H), fill=COPPER)
@@ -603,10 +655,7 @@ def render_slide(
             y += 52
         if bullets:
             sub_f = font("sans", 17, 500)
-            sub = wrap(d, "   ·   ".join(bullets), sub_f, 1140)[:2]
-            for i, line in enumerate(sub):
-                text(d, (54, y + 6 + i * 24), line, sub_f, MUTED)
-            y += 6 + 24 * len(sub)
+            y = bullet_chips(d, 54, y + 8, bullets, sub_f, active, keywords, W - 54)
         top = max(196, y + 26)
         if caption:
             cy = 570
@@ -637,15 +686,27 @@ def render_slide(
             total = sum(len(wrap(d, b, body_f, 452)) * lh + 12 for b in bullets)
             if y + total <= limit:
                 break
-        for b in bullets:
+        rows = []
+        for i, b in enumerate(bullets):
             blines = wrap(d, b, body_f, 452)
             if y + len(blines) * lh > limit:
                 break
-            d.ellipse((56, y + lh * 0.34, 65, y + lh * 0.34 + 9), fill=COPPER)
+            rows.append((i, blines, y))
+            y += len(blines) * lh + 12
+        for i, blines, top in rows:
+            bottom = top + len(blines) * lh
+            live = active is None or i in active
+            if active is not None and live:
+                d.rounded_rectangle((46, top - 7, 566, bottom + 3), radius=9, fill=ACTIVE_BG)
+                d.rounded_rectangle((49, top - 2, 53, bottom - 2), radius=2, fill=COPPER)
+            d.ellipse((56, top + lh * 0.34, 65, top + lh * 0.34 + 9), fill=COPPER if live else LINE)
+            ty = top
             for line in blines:
-                text(d, (78, y), line, body_f, INK)
-                y += lh
-            y += 12
+                if live and keywords:
+                    words_line(d, (78, ty), line, body_f, INK, COPPER_DEEP, keywords)
+                else:
+                    text(d, (78, ty), line, body_f, INK if live else MUTED_SOFT)
+                ty += lh
         rounded(d, (588, 96, W - 54, 636), radius=16, fill=CARD, outline=LINE, width=2)
         diagram(d, (614, 122, W - 80, 610))
         if caption:
