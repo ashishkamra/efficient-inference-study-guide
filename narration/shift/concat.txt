@@ -1,0 +1,3 @@
+file '/workspace/narration/shift/p1.mp4'
+file '/workspace/narration/shift/p2.mp4'
+file '/workspace/narration/shift/p3.mp4'

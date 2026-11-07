@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: #f3efe6;
+  --color-paper-2: #e6e0d2;
+  --color-card: #fffdf8;
+  --color-ink: #1c1915;
+  --color-muted: #6d655c;
+  --color-line: #ddd4c6;
+  --color-copper: #c4511a;
+  --color-copper-deep: #8d3410;
+  --color-moss: #1f6b56;
+  --color-moss-soft: #e7f3ee;
+  --color-warn-soft: #f8efd8;
+
+  --radius-card: 1.15rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-copper);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-copper) 28%, white);
+  }
+
+  input[type="range"] {
+    accent-color: var(--color-copper);
+    width: 100%;
+    height: 1.75rem;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

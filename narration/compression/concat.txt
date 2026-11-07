@@ -1,0 +1,3 @@
+file '/workspace/narration/compression/p1.mp4'
+file '/workspace/narration/compression/p2.mp4'
+file '/workspace/narration/compression/p3.mp4'

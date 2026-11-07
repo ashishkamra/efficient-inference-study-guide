@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ridge</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 1200px;
+    height: 630px;
+    background: #f3efe6;
+    color: #1c1915;
+    font-family: "Liberation Serif", "FreeSerif", "DejaVu Serif", serif;
+    overflow: hidden;
+  }
+  body {
+    position: relative;
+    background-image:
+      radial-gradient(ellipse at 12% 0%, rgba(196, 81, 26, 0.07), transparent 46%),
+      radial-gradient(ellipse at 100% 110%, rgba(28, 25, 21, 0.06), transparent 42%);
+  }
+  .frame {
+    position: absolute;
+    inset: 22px;
+    border: 1.5px solid rgba(28, 25, 21, 0.88);
+    pointer-events: none;
+  }
+  .frame-inner {
+    position: absolute;
+    inset: 28px;
+    border: 1px solid rgba(196, 81, 26, 0.85);
+    pointer-events: none;
+  }
+  .lockup {
+    position: absolute;
+    left: 78px;
+    top: 0;
+    bottom: 0;
+    width: 560px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .kicker {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 22px;
+    font-family: "Liberation Sans", "DejaVu Sans", sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: #c4511a;
+  }
+  .kicker i {
+    display: block;
+    width: 28px;
+    height: 2px;
+    background: #c4511a;
+    font-style: normal;
+  }
+  h1 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 132px;
+    line-height: 0.82;
+    letter-spacing: -0.025em;
+    color: #1c1915;
+  }
+  .rule {
+    width: 168px;
+    height: 3px;
+    margin: 28px 0 22px;
+    background: #c4511a;
+  }
+  .deck {
+    margin: 0;
+    max-width: 460px;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 30px;
+    line-height: 1.28;
+    color: #1c1915;
+  }
+  .figure {
+    position: absolute;
+    right: 72px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 430px;
+  }
+  .caption {
+    margin: 16px 0 0;
+    font-family: "Liberation Sans", "DejaVu Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #1c1915;
+  }
+  .caption span {
+    color: #c4511a;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="frame-inner"></div>
+  <div class="lockup">
+    <p class="kicker"><i></i>Study studio</p>
+    <h1>RIDGE</h1>
+    <div class="rule"></div>
+    <p class="deck">Efficient LLM inference — a survey.</p>
+  </div>
+  <div class="figure">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 360" width="430" height="360" aria-hidden="true">
+      <!-- three ink strata -->
+      <rect x="8" y="286" width="414" height="58" fill="#1c1915"/>
+      <rect x="8" y="220" width="414" height="58" fill="#2a241e"/>
+      <rect x="8" y="154" width="414" height="58" fill="#3f342c"/>
+      <!-- copper roofline: the fourth stratum, knee at the ridge point -->
+      <path d="M8 146 L8 112 L118 112 L188 28 H262 L332 112 H422 V146 Z" fill="#c4511a"/>
+      <!-- paper hairline along the eaves, so the roof reads as a drawn plate -->
+      <path d="M28 112 H108" fill="none" stroke="#f3efe6" stroke-width="1.25" opacity="0.55"/>
+      <path d="M342 112 H402" fill="none" stroke="#f3efe6" stroke-width="1.25" opacity="0.55"/>
+      <path d="M198 46 H252" fill="none" stroke="#f3efe6" stroke-width="1.25" opacity="0.7"/>
+    </svg>
+    <p class="caption"><span>Fig. I</span>&nbsp;&nbsp;Four strata</p>
+  </div>
+</body>
+</html>

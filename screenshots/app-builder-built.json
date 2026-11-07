@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Ridge · Efficient LLM inference",
+      "hasCanvas": false,
+      "bodyTextLen": 4123,
+      "bodyTextHash": "2d59e6b08c1dc4917f1b2c0088d89ce3284ec7e74a0d78706151e72e4cb07b7b",
+      "bodyTextPrefix": "Ridge INFERENCE STUDIO Path Labs Exam 0/9 AREA EXAM COMPANION · ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Ridge · Efficient LLM inference",
+      "hasCanvas": false,
+      "bodyTextLen": 4039,
+      "bodyTextHash": "a4ca34cd474994b26050610ca1d6a62fcd8e099c7bdbf22209368bc3ad118430",
+      "bodyTextPrefix": "Ridge AREA EXAM COMPANION · AREA-202606-NGUYEN Study the full st",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}
