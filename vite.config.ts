@@ -11,6 +11,21 @@ import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
 // @ts-expect-error JS plugin alongside the TS vite config
 import { appEnvPlugin } from "./scripts/app-env-plugin.mjs";
 import { isMigrationFile } from "./scripts/migration-plan.mjs";
+import { lessons } from "./src/lib/course.ts";
+
+/**
+ * GitHub Pages project sites live under `/<repo>/`, so the whole app needs a
+ * base path. Vercel (and the live preview) stay rooted at `/`. Set
+ * `GITHUB_PAGES_BASE=/<repo>/` only for the Pages build.
+ */
+function normalizeBase(value: string | undefined): string {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed || trimmed === "/") return "/";
+  return `/${trimmed.replace(/^\/+|\/+$/g, "")}/`;
+}
+
+const pagesBase = normalizeBase(process.env.GITHUB_PAGES_BASE);
+const isGithubPages = pagesBase !== "/";
 
 /** The files `src/lib/db.ts` globs — same directory, same non-recursive scope. */
 function hasGlobbedMigrations(root: string): boolean {
@@ -146,6 +161,10 @@ function authPopupPlugin(): Plugin {
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
+  // Project-page base (`/efficient-inference-study-guide/`) for GitHub Pages,
+  // `/` everywhere else. Vite rewrites bundled asset URLs from this and
+  // TanStack Start derives the router basepath from it.
+  base: pagesBase,
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -166,11 +185,33 @@ export default defineConfig(({ command, isPreview }) => ({
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart(
+      isGithubPages
+        ? {
+            // Static hosting needs real HTML for every route. List them
+            // explicitly: dynamic lesson routes are invisible to link
+            // crawling, and crawling the base-prefixed hrefs additionally
+            // duplicated every page.
+            prerender: { enabled: true, crawlLinks: false },
+            pages: [
+              "/",
+              "/exam",
+              "/glossary",
+              "/labs",
+              "/review",
+              ...lessons.map((lesson) => `/lesson/${lesson.id}`),
+            ].map((path) => ({ path })),
+          }
+        : undefined,
+    ),
     ...(command === "build" || isPreview
       ? [
           nitro({
-            preset: "vercel",
+            // TanStack Start writes prerendered HTML into the client output
+            // directory. `node-server` builds that as `.output/public` (and a
+            // server bundle we simply never deploy); the static/github-pages
+            // presets currently fail Nitro's follow-up Vite environment build.
+            preset: isGithubPages ? "node-server" : "vercel",
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.

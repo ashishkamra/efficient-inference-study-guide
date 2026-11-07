@@ -7,6 +7,8 @@ sheet, a glossary, and a mixed practice exam.
 The app is a TanStack Start site. Progress is stored in the browser with `localStorage`:
 there are no accounts, no server-side profiles, and nothing to sign in to.
 
+**Live site:** <https://ashishkamra.github.io/efficient-inference-study-guide/>
+
 ## What is inside
 
 - **Nine lessons** in the survey's order: the inference stack, bottlenecks and rooflines,
@@ -43,6 +45,7 @@ restarts the server only when it is not already healthy.
 | --- | --- |
 | `npm run dev` | Start Vite with the app environment wrapper on port 8080. |
 | `npm run build` | Production build, then best-effort database migration. |
+| `npm run build:pages` | Static GitHub Pages build (project base path, prerendered routes, `.output/public` artifact). |
 | `npm run preview:restart` | Serve the built output on `127.0.0.1:8081`. |
 | `npm run typecheck` | TypeScript with no emit. |
 | `npm run lint` | ESLint over the repository. |
@@ -105,13 +108,40 @@ palette. `screenshots/` is for local QA captures and is not part of the app bund
 
 ## Deployment
 
-The production target is Vercel. `vercel.json` installs with `--omit=dev`, so anything needed
-at build or runtime must be a regular dependency. Database environment variables are injected
-by the platform; a build without `DATABASE_URL` skips the migration step and uses the local
-PGlite fallback. This app does not use the database or auth routes.
+### GitHub Pages
 
-Generated output (`.vercel/`, build caches, preview logs) is ignored by Git. `public/` is the
-only directory whose files are served as static assets.
+The public site is published to <https://ashishkamra.github.io/efficient-inference-study-guide/>.
+Pages serves the `gh-pages` branch, which contains the static artifact produced by
+`npm run build:pages`.
+
+GitHub Pages project sites are served from `/<repo>/`, so `npm run build:pages` builds with
+`GITHUB_PAGES_BASE=/efficient-inference-study-guide/` and prerenders every route to static
+HTML. The wrapper (`scripts/build-pages.mjs`) then rewrites the remaining root-absolute asset
+URLs, writes the PWA manifest, adds a `404.html` client-routing fallback, and writes
+`.nojekyll` so the `__grok/` directory survives. The deployable artifact is `.output/public`.
+
+To reproduce the artifact locally:
+
+```sh
+npm run build:pages
+```
+
+The Pages build derives the repository and base path from `GITHUB_REPOSITORY` (or the `origin`
+remote). Override with `GITHUB_PAGES_BASE` and `GITHUB_PAGES_HOST` when needed.
+
+To publish a new build, replace the contents of the `gh-pages` branch with
+`.output/public` and push it; Pages redeploys automatically.
+
+### Vercel
+
+The production target for the full TanStack Start server is Vercel. `vercel.json` installs
+with `--omit=dev`, so anything needed at build or runtime must be a regular dependency.
+Database environment variables are injected by the platform; a build without `DATABASE_URL`
+skips the migration step and uses the local PGlite fallback. This app does not use the
+database or auth routes.
+
+Generated output (`.vercel/`, `.output/`, build caches, preview logs) is ignored by Git.
+`public/` is the only directory whose files are served as static assets.
 
 ## Layout
 

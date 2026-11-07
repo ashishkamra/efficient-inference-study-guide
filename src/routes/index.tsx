@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Clock, FlaskConical, Play } from "lucide-react";
 import { glossary, lessons, SOURCE } from "@/lib/course";
+import { assetUrl } from "@/lib/asset-url";
 import { useProgress } from "@/lib/progress";
 import { cn } from "@/lib/cn";
 
@@ -144,7 +145,7 @@ function Home() {
               >
                 <span className="relative block bg-ink">
                   <img
-                    src={l.video?.src.replace(/\.mp4(\?.*)?$/, ".jpg")}
+                    src={assetUrl(l.video?.src.replace(/\.mp4(\?.*)?$/, ".jpg") ?? "")}
                     alt=""
                     loading="lazy"
                     decoding="async"

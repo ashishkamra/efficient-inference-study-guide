@@ -1,5 +1,6 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { RotateCcw, TriangleAlert } from "lucide-react";
+import { assetUrl } from "@/lib/asset-url";
 
 const FALLBACK_MESSAGE = "An unexpected error occurred. Try reloading the page.";
 
@@ -30,7 +31,7 @@ export function AppErrorComponent({ error, reset }: ErrorComponentProps) {
           Try again
         </button>
         <a
-          href="/"
+          href={assetUrl("/")}
           className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-5 text-sm font-semibold text-ink"
         >
           Back to the path

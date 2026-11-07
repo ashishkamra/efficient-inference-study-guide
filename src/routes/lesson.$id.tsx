@@ -25,6 +25,7 @@ import {
   type Section,
 } from "@/lib/course";
 import { useProgress } from "@/lib/progress";
+import { assetUrl } from "@/lib/asset-url";
 import { cn } from "@/lib/cn";
 
 export const Route = createFileRoute("/lesson/$id")({
@@ -198,8 +199,8 @@ function LessonPage() {
                   controls
                   playsInline
                   preload="metadata"
-                  poster={lesson.video.src.replace(/\.mp4(\?.*)?$/, ".jpg")}
-                  src={lesson.video.src}
+                  poster={assetUrl(lesson.video.src.replace(/\.mp4(\?.*)?$/, ".jpg"))}
+                  src={assetUrl(lesson.video.src)}
                   onLoadedMetadata={(event) => {
                     const video = event.currentTarget;
                     if (savedVideoTime > 2 && savedVideoTime < video.duration - 2) {
