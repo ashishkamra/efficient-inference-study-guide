@@ -5,6 +5,7 @@ import { lessons } from "@/lib/course";
 import { useProgress } from "@/lib/progress";
 import { cn } from "@/lib/cn";
 import { CommandPalette, SearchTrigger } from "@/components/command-palette";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
   { to: "/", label: "Path", icon: Route },
@@ -75,6 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="ml-auto flex items-center gap-2 md:ml-0">
             <SearchTrigger />
+            <ThemeToggle />
             <p
               className="hidden text-sm text-muted tabular sm:block"
               aria-label={hydrated ? progressLabel : "Progress loading"}

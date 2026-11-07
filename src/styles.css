@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
@@ -71,6 +73,30 @@
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-paper: #171512;
+  --color-paper-2: #24201b;
+  --color-card: #201c18;
+  --color-ink: #f3efe6;
+  --color-muted: #b8aea1;
+  --color-line: #3b352e;
+  --color-copper: #e48a58;
+  --color-copper-deep: #f0aa80;
+  --color-moss: #6cc7a5;
+  --color-moss-soft: #1b332c;
+  --color-warn-soft: #362c1b;
+}
+
+.dark ::selection {
+  background: color-mix(in srgb, var(--color-copper) 35%, black);
+}
+
 
 @media print {
   header,

@@ -75,6 +75,26 @@ function LessonPage() {
   const setVideoProgress = useProgress((s) => s.setVideoProgress);
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSaved = useRef(0);
+  const [readerScale, setReaderScale] = useState(1);
+
+  useEffect(() => {
+    try {
+      const stored = Number(localStorage.getItem("ridge-reader-scale"));
+      if (Number.isFinite(stored) && stored >= 0.9 && stored <= 1.35) setReaderScale(stored);
+    } catch {
+      // A blocked storage API leaves the default size.
+    }
+  }, []);
+
+  function changeReaderScale(delta: number) {
+    const next = Math.min(1.35, Math.max(0.9, Math.round((readerScale + delta) * 100) / 100));
+    setReaderScale(next);
+    try {
+      localStorage.setItem("ridge-reader-scale", String(next));
+    } catch {
+      // Size still applies for this session.
+    }
+  }
 
   useEffect(() => {
     setLastLesson(id);
@@ -221,14 +241,48 @@ function LessonPage() {
           <section id="panel-read" role="tabpanel" aria-labelledby="tab-read" className="mt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-serif text-2xl">Written notes</h2>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-semibold"
-              >
-                <BookOpen aria-hidden className="size-4" />
-                Print notes
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Reader text size"
+                  className="flex items-center gap-1 rounded-full border border-line bg-card px-1"
+                >
+                  <button
+                    type="button"
+                    onClick={() => changeReaderScale(-0.05)}
+                    disabled={readerScale <= 0.9}
+                    aria-label="Decrease text size"
+                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full text-sm font-semibold disabled:opacity-40"
+                  >
+                    A−
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReaderScale(1)}
+                    aria-label="Reset text size to 100 percent"
+                    className="min-h-9 min-w-12 rounded-full text-xs font-semibold tabular text-muted hover:text-ink"
+                  >
+                    {Math.round(readerScale * 100)}%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeReaderScale(0.05)}
+                    disabled={readerScale >= 1.35}
+                    aria-label="Increase text size"
+                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full text-sm font-semibold disabled:opacity-40"
+                  >
+                    A+
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-semibold"
+                >
+                  <BookOpen aria-hidden className="size-4" />
+                  Print notes
+                </button>
+              </div>
             </div>
 
             {study ? (
@@ -269,7 +323,10 @@ function LessonPage() {
               </ol>
             </nav>
 
-            <div className="mt-8 space-y-10">
+            <div
+              className="mt-8 space-y-10"
+              style={{ fontSize: `${(1.0625 * readerScale).toFixed(3)}rem` }}
+            >
               {lesson.sections.map((section, i) => (
                 <NoteSection key={section.heading} section={section} index={i} />
               ))}
