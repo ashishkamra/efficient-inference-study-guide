@@ -11,6 +11,4 @@ node_modules/
 .grok/preview.log
 .grok/preview.pid
 *.log
-screenshots/phase*/
-screenshots/pages/
-screenshots/vercel/
+screenshots/*/
