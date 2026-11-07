@@ -71,3 +71,37 @@
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }
+
+@media print {
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75em;
+    color: #555;
+  }
+
+  article {
+    display: block !important;
+  }
+
+  aside {
+    display: none !important;
+  }
+}
+

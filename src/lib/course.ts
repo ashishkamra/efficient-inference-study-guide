@@ -4,6 +4,8 @@ export type Check = {
   options: string[];
   answer: number;
   why: string;
+  /** The lesson this question belongs to, used for review links and score breakdowns. */
+  lessonId?: string;
 };
 
 export type Section = {
@@ -877,6 +879,7 @@ export const glossary: { term: string; def: string }[] = [
 export const exam: Check[] = [
   {
     id: "e1",
+    lessonId: "bottlenecks",
     prompt: "A decode step at batch 1 moves FP16 weights and performs one MAC per parameter. Operational intensity is about…",
     options: ["1 FLOP/byte", "The ridge point, roughly 300 FLOP/byte", "O(t²)", "2 bytes, regardless of FLOPs"],
     answer: 0,
@@ -884,6 +887,7 @@ export const exam: Check[] = [
   },
   {
     id: "e2",
+    lessonId: "bottlenecks",
     prompt: "Which bottleneck primarily caps per-user generation speed?",
     options: ["Memory capacity", "Memory bandwidth", "Interconnect only", "Calibration set size"],
     answer: 1,
@@ -891,6 +895,7 @@ export const exam: Check[] = [
   },
   {
     id: "e3",
+    lessonId: "kv",
     prompt: "Equation (5) does not directly describe MLA because…",
     options: [
       "MLA stores no cache at all",
@@ -903,6 +908,7 @@ export const exam: Check[] = [
   },
   {
     id: "e4",
+    lessonId: "architecture",
     prompt: "Jamba’s hybrid ratio, as cited, is about…",
     options: [
       "1 attention layer per 7 Mamba layers, plus MoE",
@@ -915,6 +921,7 @@ export const exam: Check[] = [
   },
   {
     id: "e5",
+    lessonId: "decoding",
     prompt: "Speculative decoding preserves the target distribution. Diffusion language models generally…",
     options: [
       "Do too, via rejection sampling",
@@ -927,6 +934,7 @@ export const exam: Check[] = [
   },
   {
     id: "e6",
+    lessonId: "decoding",
     prompt: "Mean accepted length τ falls toward zero when…",
     options: [
       "The draft distribution drifts away from the target",
@@ -939,6 +947,7 @@ export const exam: Check[] = [
   },
   {
     id: "e7",
+    lessonId: "compression",
     prompt: "SmoothQuant’s move is to…",
     options: [
       "Migrate activation quantization difficulty onto weights with a per-channel rescale",
@@ -951,6 +960,7 @@ export const exam: Check[] = [
   },
   {
     id: "e8",
+    lessonId: "compression",
     prompt: "Which pair is the right KIVI assignment?",
     options: [
       "Per-token keys, per-channel values",
@@ -963,6 +973,7 @@ export const exam: Check[] = [
   },
   {
     id: "e9",
+    lessonId: "compression",
     prompt: "Unstructured 60% sparsity is less useful in production than 2:4 sparsity mainly because…",
     options: [
       "Unstructured sparsity increases parameter count",
@@ -975,6 +986,7 @@ export const exam: Check[] = [
   },
   {
     id: "e10",
+    lessonId: "systems",
     prompt: "FlashAttention differs from linear attention because…",
     options: [
       "It is exact softmax attention with less HBM traffic, not a different mixer",
@@ -987,6 +999,7 @@ export const exam: Check[] = [
   },
   {
     id: "e11",
+    lessonId: "systems",
     prompt: "DistServe’s objective, compared with raw throughput, is…",
     options: [
       "Goodput: tokens that meet an SLO, with prefill and decode in separate pools",
@@ -999,6 +1012,7 @@ export const exam: Check[] = [
   },
   {
     id: "e12",
+    lessonId: "compression",
     prompt: "Figure 3 warns that a pipeline of distillation, pruning, and quantization can…",
     options: [
       "Only fail if each stage fails on its own",
