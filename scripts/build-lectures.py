@@ -38,8 +38,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from beats import slide_beats  # noqa: E402
 from diagrams import CAPTIONS, DRAW  # noqa: E402
 from lectures import LESSONS  # noqa: E402
-from slidekit import H, PAPER, W, render_slide  # noqa: E402
-from speech import clip_hash, spoken  # noqa: E402
+from slidekit import H, PAPER, W, draw_caption, render_slide  # noqa: E402
+from speech import clip_hash, spoken, word_timings  # noqa: E402
 
 AUDIO = ROOT / "narration"
 OUT = ROOT / "public" / "videos"
@@ -164,6 +164,37 @@ def normalize(data: np.ndarray) -> np.ndarray:
     return np.clip(data.astype(np.float32) * gain, -32768, 32767).astype(np.int16)
 
 
+def pauses_in(data: np.ndarray) -> list[tuple[float, float]]:
+    """Internal silent spans long enough to be a punctuation pause.
+
+    Pinning caption timings to the real pauses matters more than a perfect
+    per-word model: without this, the highlight runs ahead at every comma and
+    then waits for the voice to catch up.
+    """
+    win = int(0.01 * SR)
+    if len(data) < win * 8:
+        return []
+    n = len(data) // win
+    frames = np.abs(data[: n * win].astype(np.int32)).reshape(n, win).mean(axis=1)
+    threshold = max(40.0, float(np.percentile(frames, 90)) * 0.035)
+    quiet = frames < threshold
+    spans: list[tuple[float, float]] = []
+    i = 0
+    total = len(data) / SR
+    while i < n:
+        if not quiet[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and quiet[j]:
+            j += 1
+        start, end = i * win / SR, j * win / SR
+        if end - start >= 0.13 and start > 0.04 and end < total - 0.04:
+            spans.append((round(start, 3), round(end, 3)))
+        i = j
+    return spans
+
+
 def resample(data: np.ndarray, sr: int, target: int) -> np.ndarray:
     if sr == target:
         return data
@@ -220,13 +251,16 @@ def build(lesson, kind: str):
                 img = image_for(lesson, slide, i, total, beat, png)
                 seen[key] = img
             pcm = beat_audio(beat.text, work, f"s{i:02d}-b{k:02d}", kind)
+            dur = len(pcm) / SR
             beats.append(
                 {
                     "slide": i,
                     "bullet": beat.bullet,
                     "img": img,
                     "pcm": pcm,
-                    "dur": len(pcm) / SR,
+                    "dur": dur,
+                    "text": beat.text,
+                    "words": word_timings(beat.text, dur, pauses_in(pcm)),
                 }
             )
 
@@ -246,6 +280,7 @@ def build(lesson, kind: str):
             at = prev["at"] + prev["dur"] + gap
         beat["at"] = at
         beat["fade"] = 0.0 if n == 0 else min(gap, 0.7)
+        beat["wstarts"] = [at + start for start, _span in beat["words"]]
     total_seconds = beats[-1]["at"] + beats[-1]["dur"] + TAIL
 
     starts = [b["at"] for b in beats]
@@ -267,6 +302,8 @@ def build(lesson, kind: str):
                     "dur": round(b["dur"], 3),
                     "slide": b["slide"],
                     "bullet": b["bullet"],
+                    "say": b["text"],
+                    "words": [[start, span] for start, span in b["words"]],
                 }
                 for b in beats
             ],
@@ -287,13 +324,14 @@ def build(lesson, kind: str):
         stderr=subprocess.DEVNULL,
     )
 
-    hold: dict[int, bytes] = {}
     paper = Image.new("RGB", (W, H), PAPER)
 
-    def raw(index: int) -> bytes:
-        if index not in hold:
-            hold[index] = beats[index]["img"].tobytes()
-        return hold[index]
+    def caption_word(beat, t: float) -> int:
+        starts_ = beat["wstarts"]
+        if not starts_:
+            return 0
+        k = bisect.bisect_right(starts_, t) - 1
+        return max(0, min(k, len(starts_) - 1))
 
     for f in range(n_frames):
         t = f / FPS
@@ -322,9 +360,10 @@ def build(lesson, kind: str):
                     frame = Image.blend(paper, incoming, smoothstep((t - half) / (span / 2)))
             else:
                 frame = Image.blend(beats[j]["img"], incoming, smoothstep((t - begin) / span))
-            proc.stdin.write(frame.tobytes())
         else:
-            proc.stdin.write(raw(j))
+            frame = beats[j]["img"].copy()
+        draw_caption(frame, beats[j]["text"], caption_word(beats[j], t))
+        proc.stdin.write(frame.tobytes())
 
     proc.stdin.close()
     if proc.wait() != 0:
@@ -346,7 +385,9 @@ def build(lesson, kind: str):
         stderr=subprocess.DEVNULL,
     )
 
-    beats[0]["img"].convert("RGB").save(OUT / f"lecture-{lid}.jpg", quality=90)
+    poster = beats[0]["img"].copy()
+    draw_caption(poster, beats[0]["text"], 0)
+    poster.convert("RGB").save(OUT / f"lecture-{lid}.jpg", quality=90)
 
     print(
         f"{lid:12s} slides={total:2d} beats={len(beats):3d}  "

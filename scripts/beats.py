@@ -4,10 +4,12 @@ The narration is written as prose, the slide as two short claims. This module
 finds the sentence ranges that talk about each claim so the renderer can
 highlight the bullet being spoken and dim the others.
 
-Alignment is monotone: a slide's sentences may only move forward through its
-bullets, which matches how the storyboards are written (first claim, then the
-second). Scores are content-word overlap, so "Training is paid once, then
-amortized..." pulls the "Training is paid once." bullet.
+Every claim opens with a sentence that echoes its bullet, so alignment looks for
+that opening rather than guessing from overall overlap. A bullet starts at the
+first sentence whose leading words cover most of the bullet's content words;
+filler and elaboration between two openings stays with the claim it explains.
+This keeps "That makes it compute bound." with prefill instead of handing it to
+the next claim just because the sentence count divides evenly.
 """
 
 from __future__ import annotations
@@ -30,12 +32,9 @@ STOP = {
     "why", "how", "up", "out", "about", "across", "per", "via", "vs",
 }
 
-# Deliberate bias: a claim is usually introduced before it is elaborated, and
-# the closing sentence usually belongs to the last claim.
-POSITION_BIAS = 0.06
-# Moving to the next claim costs a little: filler sentences ("It is compute
-# bound.") should stay with the claim they elaborate instead of opening a group.
-BOUNDARY = 0.10
+# A sentence counts as a claim's opening when its first few words cover this
+# much of the bullet. Below the threshold the closest candidate wins.
+ECHO = 0.6
 
 
 def split_sentences(text: str) -> list[str]:
@@ -67,26 +66,17 @@ def content(text: str) -> list[str]:
     return [stem(w) for w in words(text) if w not in STOP and len(w) > 2]
 
 
-def overlap(sentence: str, bullet: str) -> float:
-    """Fraction of the bullet's content words that the sentence mentions."""
+def echo_score(sentence: str, bullet: str) -> float:
+    """How much of the bullet the sentence's opening words cover."""
     want = set(content(bullet))
     if not want:
         return 0.0
-    have = set(content(sentence))
-    shared = want & have
-    # Token overlap dominates; a small exact-phrase bonus rewards paraphrases
-    # that keep the bullet's wording.
-    score = len(shared) / len(want)
-    score += 0.12 * len(shared)
-    return score
-
-
-def match_score(sentence: str, bullet: str, index: int, count: int) -> float:
-    score = overlap(sentence, bullet)
-    if count > 1:
-        # Extremely light pull toward the natural speaking order.
-        score += POSITION_BIAS * (1.0 - abs(index / (count - 1) - 0.5) * 2)
-    return score
+    head = {
+        stem(word)
+        for word in words(sentence)[: max(8, len(want) + 3)]
+        if word not in STOP
+    }
+    return len(want & head) / len(want)
 
 
 @dataclass
@@ -109,7 +99,12 @@ def match_keywords(sentence: str, bullet: str) -> tuple[str, ...]:
 
 
 def align_sentences(sentences: list[str], bullets: list[str]) -> list[int]:
-    """Assign each sentence to a bullet, non-decreasing, every bullet used."""
+    """Assign each sentence to a bullet, non-decreasing, every bullet used.
+
+    The first bullet starts at sentence zero. Each later bullet starts at the
+    first sentence after the previous boundary whose opening echoes the bullet;
+    when no sentence clears the threshold, the closest opening wins.
+    """
     n, m = len(sentences), len(bullets)
     if m == 0 or n == 0:
         return [-1] * n
@@ -117,41 +112,30 @@ def align_sentences(sentences: list[str], bullets: list[str]) -> list[int]:
         # More claims than sentences: spread the sentences as best we can.
         return [min(i, m - 1) for i in range(n)]
 
-    table = [
-        [match_score(s, bullet, j, m) for j, bullet in enumerate(bullets)]
-        for s in sentences
-    ]
-
-    # dp[j][i] = best score for bullets 0..j covering sentences 0..i-1.
-    neg = float("-inf")
-    dp = [[neg] * (n + 1) for _ in range(m)]
-    back = [[0] * (n + 1) for _ in range(m)]
-    dp[0][0] = 0.0
-    for i in range(1, n + 1):
-        dp[0][i] = dp[0][i - 1] + table[i - 1][0]
-        back[0][i] = 0 if i > 1 else i - 1
+    cuts = [0]
+    prev = 0
     for j in range(1, m):
-        for i in range(1, n + 1):
-            best, best_k = neg, 0
-            # bullet j must take at least one sentence: k <= i-1
-            for k in range(j, i):
-                if dp[j - 1][k] == neg:
-                    continue
-                value = dp[j - 1][k] - BOUNDARY + sum(table[t][j] for t in range(k, i))
-                if value > best:
-                    best, best_k = value, k
-            dp[j][i] = best
-            back[j][i] = best_k
-    if dp[m - 1][n] == neg:
-        return [min(i, m - 1) for i in range(n)]
+        earliest = prev + 1
+        # Leave one sentence for each claim that still has to start.
+        latest = n - (m - j)
+        if earliest > latest:
+            cuts.append(min(earliest, n))
+            prev = cuts[-1]
+            continue
 
-    cuts = [n]
-    i = n
-    for j in range(m - 1, 0, -1):
-        i = back[j][i]
+        pick = None
+        best_i, best = latest, -1.0
+        for i in range(earliest, latest + 1):
+            score = echo_score(sentences[i], bullets[j])
+            if score >= ECHO:
+                pick = i
+                break
+            if score > best:
+                best, best_i = score, i
+        i = pick if pick is not None else best_i
         cuts.append(i)
-    cuts.append(0)
-    cuts.reverse()  # [0, cut1, cut2, ..., n]
+        prev = i
+    cuts.append(n)
 
     out = []
     for j in range(m):

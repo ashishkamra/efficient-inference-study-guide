@@ -39,6 +39,13 @@ ACTIVE_BG = (250, 238, 227)
 
 W, H = 1280, 720
 
+# The narration caption band replaces the decorative footer. It is drawn on the
+# encoded frame (not baked into the slide) because its words change every few
+# frames as the sentence is spoken.
+CAPTION_TOP = 622
+CAPTION_X = 66
+CAPTION_WIDTH = W - CAPTION_X - 56
+
 _font_cache: dict[tuple[str, int, int], ImageFont.FreeTypeFont] = {}
 
 
@@ -619,6 +626,91 @@ def bullet_chips(d, x0, y0, bullets, f, active, keywords, max_w) -> float:
     return y + h
 
 
+_caption_cache: dict[tuple[str, int], dict] = {}
+_measure = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+
+
+def _wrap_words(s, f, width: int) -> list[list[str]]:
+    """Wrap a sentence into lines while keeping each word addressable."""
+    space = _measure.textlength(" ", font=f)
+    lines: list[list[str]] = []
+    cur: list[str] = []
+    used = 0.0
+    for word in s.split():
+        w = _measure.textlength(word, font=f)
+        add = w if not cur else space + w
+        if cur and used + add > width:
+            lines.append(cur)
+            cur, used = [word], w
+        else:
+            cur.append(word)
+            used += add
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def caption_plan(sentence: str) -> dict:
+    """Cache the type size and word positions for one spoken sentence."""
+    key = (sentence, CAPTION_WIDTH)
+    if key in _caption_cache:
+        return _caption_cache[key]
+
+    f = font("sans", 20, 500)
+    lines = _wrap_words(sentence, f, CAPTION_WIDTH)
+    for size in (24, 23, 22, 21, 20):
+        f = font("sans", size, 500)
+        lines = _wrap_words(sentence, f, CAPTION_WIDTH)
+        if len(lines) <= 2:
+            break
+    else:
+        for size in (19, 18, 17, 16):
+            f = font("sans", size, 500)
+            lines = _wrap_words(sentence, f, CAPTION_WIDTH)
+            if len(lines) <= 2:
+                break
+
+    lead = int(round(f.size * 1.34))
+    block = len(lines) * lead
+    top = CAPTION_TOP + (H - CAPTION_TOP - block) / 2 - 2
+    space = _measure.textlength(" ", font=f)
+    placed = []
+    for row, line in enumerate(lines):
+        x, y = float(CAPTION_X), top + row * lead
+        for word in line:
+            w = _measure.textlength(word, font=f)
+            placed.append((word, x, y, w))
+            x += w + space
+
+    plan = {"font": f, "lead": lead, "words": placed, "lines": len(lines)}
+    _caption_cache[key] = plan
+    return plan
+
+
+def draw_caption(img: Image.Image, sentence: str, upto: int) -> None:
+    """Draw the spoken sentence, lighting words through `upto` as they are said."""
+    d = ImageDraw.Draw(img)
+    d.rectangle((10, CAPTION_TOP, W, H), fill=CARD)
+    d.line([(10, CAPTION_TOP), (W, CAPTION_TOP)], fill=LINE, width=1)
+    d.rectangle((48, CAPTION_TOP + 14, 51, H - 14), fill=COPPER)
+
+    plan = caption_plan(sentence)
+    f, lead = plan["font"], plan["lead"]
+    words = plan["words"]
+    if not words:
+        return
+    upto = max(0, min(upto, len(words) - 1))
+    for i, (word, x, y, w) in enumerate(words):
+        if i == upto:
+            d.rounded_rectangle((x - 4, y - 1, x + w + 4, y + lead - 3), radius=5, fill=COPPER_SOFT)
+            colour = COPPER_DEEP
+        elif i < upto:
+            colour = INK
+        else:
+            colour = MUTED
+        d.text((x, y), word, font=f, fill=colour)
+
+
 def render_slide(
     path: Path,
     kicker: str,
@@ -658,15 +750,15 @@ def render_slide(
             y = bullet_chips(d, 54, y + 8, bullets, sub_f, active, keywords, W - 54)
         top = max(196, y + 26)
         if caption:
-            cy = 570
+            cy = 546
             d.rectangle((54, cy, 78, cy + 3), fill=COPPER)
             spaced(d, (54, cy + 12), "THE PICTURE", font("sans", 11, 700), COPPER_DEEP, 1.6)
             lines = wrap(d, caption, font("sans", 16, 500), 940)[:2]
             for i, line in enumerate(lines):
                 text(d, (232, cy + 8 + i * 23), line, font("sans", 16, 500), MUTED)
-            diagram(d, (54, top, W - 54, 552))
+            diagram(d, (54, top, W - 54, 532))
         else:
-            diagram(d, (54, top, W - 54, 636))
+            diagram(d, (54, top, W - 54, 606))
     else:
         head_f = font("serif", 43, 650)
         lines = wrap(d, headline, head_f, 486)
@@ -678,7 +770,7 @@ def render_slide(
             text(d, (54, y), line, head_f, INK)
             y += head_f.size + 8
         y += 22
-        limit = 486 if caption else 616
+        limit = 486 if caption else 600
         # shrink the bullet block rather than let it run into the caption
         body_f, lh = font("sans", 19, 500), 26
         for size, lead in ((19, 26), (18, 25), (17, 24), (16, 23)):
@@ -707,22 +799,21 @@ def render_slide(
                 else:
                     text(d, (78, ty), line, body_f, INK if live else MUTED_SOFT)
                 ty += lh
-        rounded(d, (588, 96, W - 54, 636), radius=16, fill=CARD, outline=LINE, width=2)
-        diagram(d, (614, 122, W - 80, 610))
+        rounded(d, (588, 96, W - 54, 606), radius=16, fill=CARD, outline=LINE, width=2)
+        diagram(d, (614, 122, W - 80, 582))
         if caption:
-            cy = 508
+            cy = 500
             d.rectangle((54, cy, 78, cy + 3), fill=COPPER)
             spaced(d, (54, cy + 12), "THE PICTURE", font("sans", 11, 700), COPPER_DEEP, 1.6)
             ty = cy + 34
-            for line in wrap(d, caption, font("sans", 16, 500), 466)[:4]:
+            for line in wrap(d, caption, font("sans", 16, 500), 466)[:3]:
                 text(d, (54, ty), line, font("sans", 16, 500), MUTED)
                 ty += 23
 
     if tag:
-        d_badge(d, (54, 648), tag, COPPER_DEEP, COPPER_SOFT, font("sans", 13, 700))
-    d.line([(54, 660), (W - 54, 660)], fill=LINE, width=1)
-    text(d, (54, 674), "Ridge  ·  narrated lecture", font("sans", 13, 500), MUTED)
-    text(d, (W - 54, 674), "Efficient LLM Inference", font("sans", 13, 500), MUTED, anchor="ra")
+        tf = font("sans", 13, 700)
+        tw = d.textlength(tag, font=tf) + 20
+        d_badge(d, (W - 54 - 72 - tw, 34), tag, COPPER_DEEP, COPPER_SOFT, tf)
     img.save(path, quality=92)
     return img
 

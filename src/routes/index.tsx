@@ -151,8 +151,10 @@ function Home() {
                     decoding="async"
                     className="aspect-video w-full object-cover"
                   />
-                  <span className="absolute bottom-2 left-2 flex size-8 items-center justify-center rounded-full bg-ink/80 text-card">
-                    <Play aria-hidden className="size-3.5" />
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="flex size-10 items-center justify-center rounded-full bg-ink/75 text-card shadow-sm backdrop-blur-[1px] transition group-hover:bg-ink">
+                      <Play aria-hidden className="size-4" />
+                    </span>
                   </span>
                 </span>
                 <span className="block px-3 py-3">
