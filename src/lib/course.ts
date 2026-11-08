@@ -56,7 +56,7 @@ const baseLessons: Lesson[] = [
     summary:
       "Training used to be the expensive part. Serving is now. This lesson is the survey’s argument: efficiency is a co-design problem across four layers, not a bag of tricks.",
     video: {
-      src: "/videos/lecture-shift.mp4?v=6",
+      src: "/videos/lecture-shift.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -162,7 +162,7 @@ const baseLessons: Lesson[] = [
     summary:
       "Four physical resources bound serving. The roofline model tells you which one you are actually hitting. Metrics tell you whether a speedup is real for a user.",
     video: {
-      src: "/videos/lecture-bottlenecks.mp4?v=6",
+      src: "/videos/lecture-bottlenecks.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -273,7 +273,7 @@ const baseLessons: Lesson[] = [
     summary:
       "The cache is the ledger of the whole survey. Equation (5) is the one formula to be able to manipulate cold: every later pillar pulls a different term.",
     video: {
-      src: "/videos/lecture-kv.mp4?v=6",
+      src: "/videos/lecture-kv.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -362,7 +362,7 @@ const baseLessons: Lesson[] = [
     summary:
       "Change the model itself. Every family here either deletes the cache, shrinks it, sparsifies access to it, or hybridizes so recall survives. The bill is always recall.",
     video: {
-      src: "/videos/lecture-architecture.mp4?v=6",
+      src: "/videos/lecture-architecture.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -467,7 +467,7 @@ const baseLessons: Lesson[] = [
     summary:
       "Leave the weights alone. Spend idle tensor cores so that one sequential read of the weights can emit more than one token. The dividing line is whether the output distribution stays exactly the target’s.",
     video: {
-      src: "/videos/lecture-decoding.mp4?v=6",
+      src: "/videos/lecture-decoding.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -564,7 +564,7 @@ const baseLessons: Lesson[] = [
     summary:
       "Weights carry more precision than next-token prediction needs, and many of them can be skipped. Compression spends a quality budget to cut capacity, bandwidth, and — with the right kernels — to raise usable compute.",
     video: {
-      src: "/videos/lecture-compression.mp4?v=6",
+      src: "/videos/lecture-compression.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -663,7 +663,7 @@ const baseLessons: Lesson[] = [
     summary:
       "The first three pillars specify a cheaper model. This one collects the waste they cannot see: bytes that move more than once, and compute that stalls. It is the only pillar that hits all four bottlenecks, and the only one that is mostly lossless.",
     video: {
-      src: "/videos/lecture-systems.mp4?v=6",
+      src: "/videos/lecture-systems.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -761,7 +761,7 @@ const baseLessons: Lesson[] = [
     summary:
       "Two motifs cut across the taxonomy. The KV cache is a ledger every pillar writes in. Disaggregation changes which quantization and which decoder you even want.",
     video: {
-      src: "/videos/lecture-synthesis.mp4?v=6",
+      src: "/videos/lecture-synthesis.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
@@ -847,7 +847,7 @@ const baseLessons: Lesson[] = [
     summary:
       "The conclusion is not “the stack is finished.” It names three cross-cutting problems. If you can state each one as a tradeoff with a reason it is still open, you have the exam’s last chapter.",
     video: {
-      src: "/videos/lecture-frontiers.mp4?v=6",
+      src: "/videos/lecture-frontiers.mp4?v=7",
       title: "Narrated lecture",
       caption: "Press play. The lesson is read aloud; the point being discussed stays lit on the slide.",
       transcript: [
