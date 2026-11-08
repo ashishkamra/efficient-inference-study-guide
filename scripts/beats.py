@@ -73,7 +73,7 @@ def echo_score(sentence: str, bullet: str) -> float:
         return 0.0
     head = {
         stem(word)
-        for word in words(sentence)[: max(8, len(want) + 3)]
+        for word in words(sentence)[: max(12, len(want) + 4)]
         if word not in STOP
     }
     return len(want & head) / len(want)
@@ -124,7 +124,10 @@ def align_sentences(sentences: list[str], bullets: list[str]) -> list[int]:
             continue
 
         pick = None
-        best_i, best = latest, -1.0
+        # With no sentence above the echo threshold, keep the boundary late:
+        # extra material belongs to the claim it follows, not to a later claim
+        # that has not actually started yet.
+        best_i, best = latest, 0.0
         for i in range(earliest, latest + 1):
             score = echo_score(sentences[i], bullets[j])
             if score >= ECHO:

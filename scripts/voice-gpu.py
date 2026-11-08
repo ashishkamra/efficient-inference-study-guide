@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Render the lecture voice on the GPU box with XTTS-v2.
 
-Every beat (one sentence) is synthesised once and cached on a hash of the
-speaker and the spoken text, so changing a slide only re-renders the sentences
-that changed.
+The lectures use the local Kokoro voice by default; this path is the opt-in
+alternative (RIDGE_TTS=xtts) when a more expressive read is wanted. Every beat
+(one sentence) is synthesised once and cached on a hash of the speaker and the
+spoken text, so changing a slide only re-renders the sentences that changed.
 
     python3 scripts/voice-gpu.py             # everything missing
     python3 scripts/voice-gpu.py kv systems  # selected lessons

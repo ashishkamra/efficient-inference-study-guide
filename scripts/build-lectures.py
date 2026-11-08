@@ -9,11 +9,12 @@ picture never cuts away from the words.
 
     python3 scripts/build-lectures.py             # every lesson
     python3 scripts/build-lectures.py kv systems  # selected lessons
-    RIDGE_TTS=kokoro python3 scripts/build-lectures.py kv
+    RIDGE_TTS=xtts python3 scripts/build-lectures.py kv
 
-The default voice is XTTS-v2 rendered on the GPU box by scripts/voice-gpu.py
-and cached in narration/.tts-gpu. Set RIDGE_TTS=kokoro to use the local
-Kokoro-82M model instead.
+The default voice is Kokoro-82M, which runs locally and reads in a steady,
+neutral register. Set RIDGE_TTS=xtts to use the XTTS-v2 voice rendered on the
+GPU box by scripts/voice-gpu.py instead; those clips are cached in
+narration/.tts-gpu.
 """
 
 from __future__ import annotations
@@ -51,8 +52,9 @@ VOICES = CACHE / "voices-v1.0.bin"
 MODEL_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
 VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 
-KOKORO_VOICE = "af_heart"
-KOKORO_SPEED = 0.96
+KOKORO_VOICE = "bm_george"
+KOKORO_SPEED = 0.92
+KOKORO_LANG = "en-gb"
 XTTS_VOICE = os.environ.get("RIDGE_VOICE", "Ana Florence")
 
 SR = 24000
@@ -70,8 +72,6 @@ def backend() -> str:
     chosen = os.environ.get("RIDGE_TTS")
     if chosen:
         return chosen
-    if (GPU_VOICE / "READY").exists():
-        return "xtts"
     return "kokoro"
 
 
@@ -113,11 +113,11 @@ def write_wav(path: Path, data: np.ndarray, sr: int = SR):
 
 
 def synth_kokoro(text: str, dest: Path):
-    digest = clip_hash(text, f"kokoro|{KOKORO_VOICE}|{KOKORO_SPEED}")
+    digest = clip_hash(spoken(text), f"kokoro|{KOKORO_VOICE}|{KOKORO_SPEED}|{KOKORO_LANG}")
     meta = dest.with_suffix(".json")
     if dest.exists() and meta.exists() and json.loads(meta.read_text()).get("hash") == digest:
         return
-    samples, sr = engine().create(spoken(text), voice=KOKORO_VOICE, speed=KOKORO_SPEED, lang="en-us")
+    samples, sr = engine().create(spoken(text), voice=KOKORO_VOICE, speed=KOKORO_SPEED, lang=KOKORO_LANG)
     pcm = (np.clip(samples, -1, 1) * 32767).astype(np.int16)
     write_wav(dest, pcm, sr)
     meta.write_text(json.dumps({"hash": digest, "sr": sr}))

@@ -6,6 +6,8 @@ a cached clip is keyed on exactly the words that were spoken.
 
 PRONOUNCE = {
     "KIVI": "kee vee",
+    "KV": "key value",
+    "2:4": "two four",
     "SGLang": "S G Lang",
     "vLLM": "v L L M",
     "GPTQ": "G P T Q",
