@@ -72,7 +72,12 @@ function LessonPage() {
   const answer = useProgress((s) => s.answerCheck);
   const resetCheck = useProgress((s) => s.resetCheck);
   const setLastLesson = useProgress((s) => s.setLastLesson);
-  const savedVideoTime = useProgress((s) => s.videoProgress[id] ?? 0);
+  // A re-recorded lecture keeps its id but not its timeline, so the resume
+  // point is stored per source version: an old timestamp would drop the
+  // viewer into the middle of a different edit.
+  const videoVersion = lesson?.video?.src.match(/\?v=(\d+)/)?.[1] ?? "1";
+  const progressKey = lesson ? `${lesson.id}@${videoVersion}` : id;
+  const savedVideoTime = useProgress((s) => s.videoProgress[progressKey] ?? 0);
   const setVideoProgress = useProgress((s) => s.setVideoProgress);
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSaved = useRef(0);
@@ -211,7 +216,7 @@ function LessonPage() {
                     const video = event.currentTarget;
                     if (Math.abs(video.currentTime - lastSaved.current) < 5) return;
                     lastSaved.current = video.currentTime;
-                    setVideoProgress(lesson.id, video.currentTime);
+                    setVideoProgress(progressKey, video.currentTime);
                   }}
                 />
                 <figcaption className="space-y-3 bg-card px-4 py-4 sm:px-5">
